@@ -1,19 +1,53 @@
-# study·ops
+<div align="center">
+
+# 🎓 study·ops
 
 **Local-first AI agents for the study-abroad pipeline.**
-Phase 1: 🇬🇧 United Kingdom (Russell Group admissions, CAS tracking and UKVI Student visa compliance).
 
-Inspired by [`santifer/career-ops`](https://github.com/santifer/career-ops): one Markdown file is your single source of truth, specialised agents do the work, and a CLI ties them together. There is no database and no cloud dependency. Your data stays on your machine.
+Phase 1: 🇬🇧 United Kingdom · Russell Group admissions · CAS tracking · UKVI Student visa compliance
 
-```
-  study·ops  UK Edition · Phase 1
-  local-first agents for the study-abroad pipeline
+[![CI](https://github.com/Sharathanabattula/study-ops/actions/workflows/ci.yml/badge.svg)](https://github.com/Sharathanabattula/study-ops/actions/workflows/ci.yml)
+![Node](https://img.shields.io/badge/node-%E2%89%A520-339933?logo=node.js&logoColor=white)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+![Status](https://img.shields.io/badge/status-phase%201%20alpha-orange)
+![Local-first](https://img.shields.io/badge/data-local--first-8AB4FF)
+
+</div>
+
+---
+
+Applying to a UK master's means juggling a dozen university portals, rewriting the same personal statement for different tones, and then getting the UKVI bank statement rules exactly right, because one day below the threshold can mean a refusal.
+
+**Study-Ops turns that into a pipeline.** Your whole application profile lives in one Markdown file. Specialised agents read it to grade universities, tailor your statement and audit your visa funds. A CLI ties them together.
+
+Inspired by [`santifer/career-ops`](https://github.com/santifer/career-ops). There is no database and no cloud dependency, and your data never leaves your machine.
+
+### ✨ What it does
+
+- **🏛️ University Evaluator**: grades any Russell Group programme A–F (1.0–5.0) on admission probability, budget fit, ROI, programme fit and career outcomes.
+- **✍️ SOP Tailor**: rewrites one master statement for each university's register, e.g. LSE's argument-driven style or Imperial's evidence-first one, without inventing facts.
+- **🛂 UKVI Compliance Engine**: calculates exact proof of funds, the 28-day bank statement window and CAS deadlines. It is deterministic, tested and date-aware for rule changes.
+- **📋 Tracker**: one YAML file follows every application from `researching` to `enrolled`.
+
+```text
+$ study-ops audit-funds --location london --duration 12 --tuition 38000 --deposit 5000 --apply-date 2027-07-01
+
+  ╭─ breakdown ───────────────────────────────────────────╮
+  │    Tuition outstanding  £33,000                       │
+  │           Living costs  £1,570/mo × 9 (London, max 9) │
+  │          TOTAL TO SHOW  £47,130                       │
+  ╰───────────────────────────────────────────────────────╯
+  ╭─ bank statement ──────────────────────────────────────────────╮
+  │       Visa application  2027-07-01                            │
+  │      Funds in place by  2027-06-04 at the latest              │
+  │     Statement end date  2027-05-31 → 2027-07-01               │
+  ╰───────────────────────────────────────────────────────────────╯
 ```
 
 ## Quick start
 
 ```bash
-git clone <this-repo> study-ops && cd study-ops
+git clone https://github.com/Sharathanabattula/study-ops.git && cd study-ops
 npm install
 npm link            # optional: puts `study-ops` on your PATH
 study-ops init      # scaffolds data/student_profile.md, tracker.yaml, personal_statement.md
@@ -82,4 +116,8 @@ STUDY_OPS_DEBUG=1   # print stack traces
 
 ## License
 
-MIT
+MIT © Sharath Chandra Anabattula
+
+---
+
+Contributions welcome: see [CONTRIBUTING.md](CONTRIBUTING.md). For privacy and vulnerability reporting, see [SECURITY.md](SECURITY.md).

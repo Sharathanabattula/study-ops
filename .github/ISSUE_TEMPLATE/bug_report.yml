@@ -1,0 +1,26 @@
+name: Bug report
+description: Something in Study-Ops is broken or calculates the wrong figure
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **Do not paste your real student_profile.md, bank balances or passport details.** Use made-up values that reproduce the bug.
+  - type: input
+    id: command
+    attributes:
+      label: Command you ran
+      placeholder: study-ops audit-funds --location london --duration 12 --tuition 38000
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected vs what happened
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Node version and OS
+      placeholder: Node 22.4, macOS 15

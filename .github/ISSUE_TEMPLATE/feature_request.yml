@@ -1,0 +1,14 @@
+name: Feature request
+description: Suggest a new agent, command or country
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Which part of the study-abroad pipeline is painful?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What should Study-Ops do about it?

@@ -1,0 +1,24 @@
+name: UKVI rule change
+description: gov.uk changed a maintenance rate, the 28-day rule, CAS validity or similar
+labels: [ukvi-rules]
+body:
+  - type: input
+    id: source
+    attributes:
+      label: Official source (gov.uk or Statement of Changes link)
+    validations:
+      required: true
+  - type: input
+    id: effective
+    attributes:
+      label: Effective date (applications made on or after)
+      placeholder: 2026-11-30
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: What changed
+      placeholder: London monthly maintenance £1,529 → £1,570; outside London £1,171 → £1,203
+    validations:
+      required: true
