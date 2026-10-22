@@ -1,0 +1,79 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  RUSSELL GROUP REGISTRY (24 members)
+#  Used for domain → university lookup, the UKVI London rate, and SOP tone.
+#
+#  `tone` entries are editorial heuristics for the SOP Tailor, NOT official
+#  guidance. Always defer to the programme page's own statement instructions.
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+
+universities:
+  - { key: birmingham,  name: "University of Birmingham",                    domains: [birmingham.ac.uk, bham.ac.uk], city: Birmingham, ukvi_location: outside-london }
+  - { key: bristol,     name: "University of Bristol",                       domains: [bristol.ac.uk],      city: Bristol,     ukvi_location: outside-london }
+  - key: cambridge
+    name: "University of Cambridge"
+    domains: [cam.ac.uk]
+    city: Cambridge
+    ukvi_location: outside-london
+    tone: "Intellectual depth over polish. Show sustained engagement with ideas, independent reading and research readiness. Understated; no salesmanship."
+  - { key: cardiff,     name: "Cardiff University",                          domains: [cardiff.ac.uk],      city: Cardiff,     ukvi_location: outside-london }
+  - { key: durham,      name: "Durham University",                           domains: [durham.ac.uk, dur.ac.uk], city: Durham, ukvi_location: outside-london }
+  - key: edinburgh
+    name: "University of Edinburgh"
+    domains: [ed.ac.uk]
+    city: Edinburgh
+    ukvi_location: outside-london
+    tone: "Clear academic motivation with interdisciplinary curiosity; link your background to specific programme strengths."
+  - { key: exeter,      name: "University of Exeter",                        domains: [exeter.ac.uk],       city: Exeter,      ukvi_location: outside-london }
+  - { key: glasgow,     name: "University of Glasgow",                       domains: [gla.ac.uk],          city: Glasgow,     ukvi_location: outside-london }
+  - key: imperial
+    name: "Imperial College London"
+    domains: [imperial.ac.uk]
+    city: London
+    ukvi_location: london
+    tone: "Technical, quantitative and evidence-led. Lead with rigour, methods and measurable outcomes; problem → approach → result. Minimal flourish."
+  - key: kcl
+    name: "King's College London"
+    domains: [kcl.ac.uk]
+    city: London
+    ukvi_location: london
+    tone: "Purpose-driven and societal impact-oriented; connect the subject to real-world service and the London context."
+  - { key: leeds,       name: "University of Leeds",                         domains: [leeds.ac.uk],        city: Leeds,       ukvi_location: outside-london }
+  - { key: liverpool,   name: "University of Liverpool",                     domains: [liverpool.ac.uk, liv.ac.uk], city: Liverpool, ukvi_location: outside-london }
+  - key: lse
+    name: "London School of Economics and Political Science"
+    domains: [lse.ac.uk]
+    city: London
+    ukvi_location: london
+    tone: "Analytical and argument-driven. Engage with policy, theory and debate; show why the social-science lens matters. Confident, concise, globally minded."
+  - key: manchester
+    name: "University of Manchester"
+    domains: [manchester.ac.uk]
+    city: Manchester
+    ukvi_location: outside-london
+    tone: "Practical and outcome-focused; tie experience to modules, industry links and career plans."
+  - { key: newcastle,   name: "Newcastle University",                        domains: [ncl.ac.uk],          city: Newcastle,   ukvi_location: outside-london }
+  - { key: nottingham,  name: "University of Nottingham",                    domains: [nottingham.ac.uk],   city: Nottingham,  ukvi_location: outside-london }
+  - key: oxford
+    name: "University of Oxford"
+    domains: [ox.ac.uk]
+    city: Oxford
+    ukvi_location: outside-london
+    tone: "Academic focus above all. Precise research interests, fit with named faculty or groups, evidence of independent scholarship. Personal anecdote only where it serves the argument."
+  - { key: qmul,        name: "Queen Mary University of London",             domains: [qmul.ac.uk],         city: London,      ukvi_location: london }
+  - { key: qub,         name: "Queen's University Belfast",                  domains: [qub.ac.uk],          city: Belfast,     ukvi_location: outside-london }
+  - { key: sheffield,   name: "University of Sheffield",                     domains: [sheffield.ac.uk],    city: Sheffield,   ukvi_location: outside-london }
+  - { key: southampton, name: "University of Southampton",                   domains: [southampton.ac.uk, soton.ac.uk], city: Southampton, ukvi_location: outside-london }
+  - key: ucl
+    name: "University College London"
+    domains: [ucl.ac.uk]
+    city: London
+    ukvi_location: london
+    tone: "Answer UCL's specific prompts directly; show why this programme and how you'll contribute. Interdisciplinary and research-aware."
+  - key: warwick
+    name: "University of Warwick"
+    domains: [warwick.ac.uk]
+    city: Coventry
+    ukvi_location: outside-london
+    tone: "Structured and career-focused; quantify impact and show clear post-degree trajectory."
+  - { key: york,        name: "University of York",                          domains: [york.ac.uk],         city: York,        ukvi_location: outside-london }

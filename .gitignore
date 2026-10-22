@@ -1,0 +1,11 @@
+node_modules/
+.env
+
+# Personal state: local-first, never committed
+data/*
+!data/.gitkeep
+reports/
+output/
+
+.DS_Store
+*.log

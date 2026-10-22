@@ -1,0 +1,43 @@
+{
+  "name": "study-ops",
+  "version": "0.1.0",
+  "description": "Local-first, multi-agent CLI that automates the study-abroad pipeline. Phase 1: UK (Russell Group admissions, CAS tracking, UKVI Student visa compliance).",
+  "type": "module",
+  "bin": {
+    "study-ops": "./bin/study-ops.js"
+  },
+  "exports": {
+    "./agents/*": "./src/agents/*.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "config",
+    "templates"
+  ],
+  "scripts": {
+    "start": "node bin/study-ops.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "study-abroad",
+    "uk",
+    "ukvi",
+    "cas",
+    "russell-group",
+    "cli",
+    "ai-agents",
+    "local-first"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^6.0.1",
+    "commander": "^15.0.0",
+    "dotenv": "^18.0.8",
+    "marked": "^18.1.1",
+    "yaml": "^2.9.1"
+  }
+}

@@ -1,0 +1,52 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  UKVI STUDENT VISA: FINANCIAL REQUIREMENT RULES
+#  Consumed by src/agents/3_ukvi_compliance_engine.js
+#
+#  ⚠  Immigration rules change. The rate that applies is decided by the DATE
+#     YOU APPLY, not your CAS, course start or bank statement date.
+#     Always re-verify at: https://www.gov.uk/student-visa/money
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+currency: GBP
+source: "https://www.gov.uk/student-visa/money"
+
+# "London" for UKVI = the City of London + all 32 London boroughs (inner AND
+# outer). A campus in Harrow or Uxbridge is still "london".
+london_definition: "City of London and the 32 London boroughs"
+
+maintenance:
+  max_months: 9            # Living costs are capped at 9 months
+  # Ordered oldest → newest. The engine picks the latest entry whose
+  # effective_from is on or before the visa application date.
+  rates:
+    # The first entry is the baseline for any date before the next entry.
+    - effective_from: null           # start date not tracked; in force as of Oct 2026
+      london_monthly: 1529
+      outside_london_monthly: 1171
+      status: in_force
+      note: "Matches gov.uk/student-visa/money as of Oct 2026."
+    - effective_from: "2026-11-30"
+      london_monthly: 1570
+      outside_london_monthly: 1203
+      status: announced
+      note: "Statement of Changes laid 3 Sep 2026; applies to applications made on/after 30 Nov 2026. Verify on gov.uk."
+
+dependants:
+  # Per dependant, per month, up to max_months
+  london_monthly: 845
+  outside_london_monthly: 680
+  note: "Phase 1 does not model dependants; most taught-PG students cannot bring them."
+
+tuition:
+  # You must show the outstanding fees for the first academic year (or the
+  # whole course if it is shorter than a year), as stated on the CAS, minus
+  # anything already paid to the sponsor.
+  scope: "first_academic_year_or_full_course_if_shorter"
+
+funds_holding:
+  consecutive_days: 28              # Money held for at least 28 days in a row
+  max_days_end_before_application: 31  # 28-day period must end ≤ 31 days before applying
+
+cas:
+  validity_months: 6                # A CAS can be used for one application within 6 months
+  earliest_apply_before_course_months: 6   # Apply from outside the UK up to 6 months before start

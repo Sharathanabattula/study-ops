@@ -1,0 +1,76 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  STUDY-OPS · APPLICATION TRACKER
+#  One entry per programme. Agents read and append; you stay the editor.
+#
+#  status lifecycle:
+#    researching → shortlisted → drafting → submitted → interview
+#      → offer_conditional | offer_unconditional | rejected | withdrawn
+#      → firm_accepted → deposit_paid → cas_requested → cas_issued
+#      → visa_submitted → visa_granted | visa_refused → enrolled
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+
+defaults:
+  currency: GBP
+  intake: "2027-09"
+
+applications:
+  - id: example-lse-msc-finance          # kebab-case, unique
+    university: "London School of Economics and Political Science"
+    short_name: "LSE"
+    russell_group: true
+    programme: "MSc Finance"
+    url: "https://www.lse.ac.uk/"
+    location: london                     # london | outside-london (UKVI rate)
+    status: researching
+
+    evaluation:
+      score: null                        # 1.0–5.0 from `study-ops evaluate`
+      grade: null                        # A–F
+      report: null                       # path under reports/
+
+    portal:
+      name: ""                           # e.g. "LSE Graduate Admissions"
+      url: ""
+      username: ""                       # Never store passwords here
+      applicant_id: ""
+
+    deadlines:
+      application: null                  # YYYY-MM-DD (or round, e.g. "Round 2")
+      scholarship: null
+      deposit: null
+      conditions_met_by: null
+
+    fees:
+      tuition_year_one: null
+      application_fee: null
+      deposit_amount: null
+      deposit_paid: 0
+
+    offer:
+      type: null                         # conditional | unconditional
+      conditions: []                     # e.g. ["Final transcript", "IELTS 7.0 (6.5)"]
+      received_on: null
+
+    cas:
+      requested_on: null
+      issued_on: null
+      number: ""                         # 14-character CAS reference
+      expires_on: null                   # CAS is valid for 6 months from issue
+      course_start: null
+      course_end: null
+
+    visa:
+      funds_statement_start: null        # Start of 28-consecutive-day hold
+      funds_statement_end: null          # Must be ≤ 31 days before application
+      applied_on: null
+      biometrics_on: null
+      decision: null                     # granted | refused
+      brp_or_evisa: ""
+
+    documents:
+      sop_version: ""                    # path under output/sop/
+      references_submitted: 0
+      transcripts_uploaded: false
+
+    notes: ""
