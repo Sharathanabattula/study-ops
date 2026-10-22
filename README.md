@@ -51,6 +51,7 @@ git clone https://github.com/Sharathanabattula/study-ops.git && cd study-ops
 npm install
 npm link            # optional: puts `study-ops` on your PATH
 study-ops init      # scaffolds data/student_profile.md, tracker.yaml, personal_statement.md
+cp .env.example .env   # then paste your Anthropic API key into .env
 ```
 
 Fill in `data/student_profile.md`, then:
@@ -58,9 +59,28 @@ Fill in `data/student_profile.md`, then:
 | Command | Agent | Status |
 |---|---|---|
 | `study-ops init [--force]` | Workspace scaffold | ✅ Ready |
-| `study-ops evaluate <url>` | 1 · University Evaluator: A–F grade, 1.0–5.0 score | 🧱 Scaffold (Russell Group resolution and profile-gap check work; scoring needs an LLM) |
-| `study-ops generate-sop --uni <name> [--programme] [--words]` | 2 · SOP Tailor: per-university rewrite | 🧱 Scaffold (builds and saves a constrained prompt to `output/sop/`) |
+| `study-ops evaluate <url>` | 1 · University Evaluator: A–F grade, 1.0–5.0 score, report in `reports/`, tracker updated | ✅ Ready (needs API key) |
+| `study-ops generate-sop --uni <name> [--programme] [--words] [--url]` | 2 · SOP Tailor: draft → critique → revise, saved to `output/sop/` | ✅ Ready (needs API key) |
 | `study-ops audit-funds --location <london\|outside> --duration <months> --tuition <gbp>` | 3 · UKVI Compliance Engine | ✅ Ready (deterministic) |
+
+Without an API key, `evaluate` and `generate-sop` still run in scaffold mode. `generate-sop` then saves a ready-to-paste prompt for any model.
+
+### Connecting Claude
+
+The two writing and judgement agents use [Anthropic's Claude](https://platform.claude.com) through the official `@anthropic-ai/sdk`.
+
+1. Create an API key at <https://platform.claude.com/settings/keys>.
+2. `cp .env.example .env` and set `ANTHROPIC_API_KEY=sk-ant-...`.
+3. Optional: `STUDY_OPS_MODEL` picks the model. The default is `claude-opus-5-5`.
+
+How the integration behaves:
+- **Pages are fetched on your machine.** Only the page text, your profile and your statement are sent to Anthropic.
+- **Structured outputs.** Requirements, scores and critiques come back validated against Zod schemas, so they can't be malformed.
+- **The arithmetic isn't the model's.** IELTS band gaps, tuition vs budget and UKVI living costs are computed in code and handed to Claude as facts.
+- **Prompt caching.** Your profile and master statement are cached across the SOP draft → critique → revise calls.
+- **Server-side fallbacks** are on (`fallbacks: "default"`). If a request is declined, the API retries it on Anthropic's recommended fallback model. A request declined by every model shows a clear error.
+
+Rough cost on Opus 5.5 ($4 / $20 per million tokens): **about $0.05–0.25 per evaluation** and **$0.10–0.30 per tailored statement**, depending on page and statement length.
 
 ### `audit-funds` in detail
 
@@ -85,7 +105,8 @@ src/agents/
   1_university_evaluator.js      URL + profile → A–F report
   2_sop_tailor.js                master statement → university-specific SOP
   3_ukvi_compliance_engine.js    funds, 28-day rule, CAS guardrails (pure functions)
-src/lib/                         paths, Markdown/YAML state layer, profile + registry loaders
+src/llm/claude.js                the only module that calls an LLM (model, caching, fallbacks, errors)
+src/lib/                         paths, Markdown/YAML state, profile, registry, tracker, page fetcher
 src/ui/theme.js                  terminal design system (palette, panels, rows)
 src/commands/init.js             workspace scaffold + onboarding
 config/ukvi_rules.yaml           dated UKVI financial rules (edit when gov.uk changes)
@@ -99,7 +120,7 @@ reports/, output/                agent output (git-ignored)
 - `data/student_profile.md`: YAML front-matter holds machine-read facts (CGPA, IELTS bands, budget, shortlist). The Markdown body holds your narrative. Agents parse both: `##` sections are indexed by heading.
 - `data/tracker.yaml`: one entry per programme, with a status lifecycle running from `researching` through `cas_issued`, `visa_granted` and `enrolled`.
 
-**Privacy.** `data/`, `reports/` and `output/` are git-ignored. Set `STUDY_OPS_HOME` to keep them somewhere else, such as an encrypted volume. Nothing is sent to an LLM until you configure a provider.
+**Privacy.** `data/`, `reports/` and `output/` are git-ignored. Set `STUDY_OPS_HOME` to keep them somewhere else, such as an encrypted volume. Nothing is sent to an LLM until you add an API key, and then only for `evaluate` and `generate-sop`. `audit-funds` never leaves your machine.
 
 ## Development
 
@@ -110,7 +131,7 @@ STUDY_OPS_DEBUG=1   # print stack traces
 
 ## Roadmap
 
-- **1.1** LLM provider adapter (`.env`), evaluator page extraction and scoring, SOP generate → critique → revise.
+- ~~**0.2** Claude provider, evaluator extraction and scoring, SOP generate → critique → revise.~~ ✅
 - **1.2** `study-ops tracker` (status board, deadline alerts), CAS checklist agent.
 - **2.x** More countries (Canada, Australia, Germany), dependants and sponsor modelling.
 

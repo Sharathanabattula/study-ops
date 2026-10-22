@@ -14,6 +14,7 @@ import { initWorkspace, printWelcome } from '../src/commands/init.js';
 import { evaluateUniversity } from '../src/agents/1_university_evaluator.js';
 import { tailorPersonalStatement } from '../src/agents/2_sop_tailor.js';
 import { auditFunds, parseDate } from '../src/agents/3_ukvi_compliance_engine.js';
+import { explainError, model } from '../src/llm/claude.js';
 import { banner, color, fail, gbp, heading, note, panel, row, success, warn } from '../src/ui/theme.js';
 
 const pkg = createRequire(import.meta.url)('../package.json');
@@ -36,14 +37,18 @@ const isoDate = (v) => {
   }
 };
 
+/** Print a pipeline stage as it starts. */
+const progress = (stage) => note(`${color.accent('›')} ${stage}…`);
+
 /** Wrap an action so errors render nicely instead of as stack traces. */
 const run = (fn) => async (...args) => {
   try {
     await fn(...args);
-  } catch (err) {
+  } catch (raw) {
+    const err = explainError(raw);
     console.log();
     fail(err.message);
-    if (process.env.STUDY_OPS_DEBUG) console.error(err);
+    if (process.env.STUDY_OPS_DEBUG) console.error(raw);
     console.log();
     process.exitCode = 1;
   }
@@ -76,18 +81,32 @@ program
   .argument('<url>', 'programme page URL')
   .action(run(async (url) => {
     banner('University Evaluator');
-    const report = await evaluateUniversity({ url });
+    const report = await evaluateUniversity({ url, onProgress: progress });
+    if (report.status === 'complete') console.log();
 
     const uniLine = report.university
       ? `${report.university.name} ${color.muted(`· ${report.university.city} · Russell Group`)}`
       : color.warn('Not in Russell Group registry (Phase 1 is RG-only)');
-    panel('target', [row('University', uniLine, 12), row('URL', color.muted(report.url), 12)]);
+    panel('target', [
+      row('University', uniLine, 12),
+      ...(report.requirements?.programme_title ? [row('Programme', report.requirements.programme_title, 12)] : []),
+      row('URL', color.muted(report.url), 12),
+    ]);
 
     panel('scorecard', report.dimensions.map((d) =>
-      row(d.label, `${d.score ?? color.muted('–.–')}  ${color.muted(`${Math.round(d.weight * 100)}%`)}`, 22)));
+      row(d.label, `${d.score?.toFixed(1) ?? color.muted('–.–')}  ${color.muted(`${Math.round(d.weight * 100)}%`)}`, 22)));
 
-    if (report.grade) success(`Grade ${color.bold(report.grade)} · ${report.score}/5.0 · ${report.verdict}`);
-    else warn('Scaffold mode: scoring activates once an LLM provider is configured.');
+    if (report.grade) {
+      const tint = { A: color.ok, B: color.ok, C: color.warn }[report.grade] ?? color.err;
+      success(`Grade ${tint.bold(report.grade)} · ${report.score}/5.0 · ${report.verdict}`);
+      if (report.summary) note(report.summary);
+      console.log();
+      for (const r of report.risks.slice(0, 3)) warn(r);
+      success(`Report saved to ${color.bold(path.relative(process.cwd(), report.reportPath))}`);
+      if (report.tracker === 'created' || report.tracker === 'updated') success(`Tracker ${report.tracker}: ${color.bold(report.id)}`);
+    } else {
+      warn('Scaffold mode: add ANTHROPIC_API_KEY to .env to enable scoring.');
+    }
     if (report.missingProfileFields.length) {
       warn(`Profile gaps: ${report.missingProfileFields.map((f) => color.bold(f)).join(', ')}`);
     }
@@ -100,12 +119,28 @@ program
   .requiredOption('-u, --uni <name>', 'university name or key, e.g. LSE, imperial, ucl')
   .option('-p, --programme <name>', 'programme title, e.g. "MSc Finance"')
   .option('-w, --words <n>', 'word limit', positiveNumber)
-  .action(run(async ({ uni, programme, words }) => {
+  .option('--url <url>', 'programme page, so the draft can reference real modules and prompts')
+  .action(run(async ({ uni, programme, words, url }) => {
     banner('SOP Tailor');
-    const result = await tailorPersonalStatement({ university: uni, programme, wordLimit: words });
+    const result = await tailorPersonalStatement({ university: uni, programme, wordLimit: words, url, onProgress: progress });
+    if (result.status === 'complete') console.log();
     panel(result.university, [row('Tone', result.tone.length > 70 ? `${result.tone.slice(0, 69)}…` : result.tone, 6)]);
-    success(`Prompt saved to ${color.bold(path.relative(process.cwd(), result.promptPath))}`);
-    note('Scaffold mode: paste it into your model of choice, or configure a provider in .env.');
+
+    if (result.status === 'complete') {
+      const scores = Object.entries(result.critique.scores).map(([k, v]) => row(k.replace(/_/g, ' '), `${v}/5`, 18));
+      panel('first-draft review', [
+        ...scores,
+        '',
+        row('unsupported claims', String(result.critique.unsupported_claims.length), 18),
+        row('final word count', String(result.wordCount), 18),
+      ]);
+      success(`Final statement saved to ${color.bold(path.relative(process.cwd(), result.outputPath))}`);
+      note(`Drafted, critiqued and revised with ${model()}.`);
+    } else {
+      success(`Prompt saved to ${color.bold(path.relative(process.cwd(), result.promptPath))}`);
+      note('Scaffold mode: add ANTHROPIC_API_KEY to .env to generate the statement directly.');
+    }
+    for (const w of result.warnings) warn(w);
     console.log();
   }));
 

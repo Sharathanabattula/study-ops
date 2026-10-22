@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 · 2026-10-22
+
+Claude is now connected as the LLM provider.
+
+- `src/llm/claude.js`: Anthropic SDK client (`claude-opus-5-5` by default, override with `STUDY_OPS_MODEL`), structured outputs via Zod, prompt caching, server-side refusal fallbacks and readable API errors.
+- `evaluate`: fetches the programme page locally, extracts requirements (null when not stated), runs deterministic IELTS/budget/UKVI checks, scores five dimensions, writes `reports/<id>.md` and upserts `data/tracker.yaml` with comments preserved.
+- `generate-sop`: draft → rubric critique → revision, with a new `--url` flag to ground the draft in the programme page. Output goes to `output/sop/<uni>.md` with review notes.
+- Without an API key, both commands fall back to scaffold mode.
+- Tests: SDK request shape, refusal handling and both pipelines end to end against a recorded HTTP layer.
+
 ## 0.1.0 · 2026-10-22
 
 Initial UK Phase 1 scaffold.
