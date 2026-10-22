@@ -18,6 +18,8 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
+      - name: Install Chromium for form-filling tests
+        run: npx playwright install --with-deps chromium
       - run: npm test
       - name: CLI smoke test
         run: |
@@ -26,3 +28,5 @@ jobs:
           node bin/study-ops.js audit-funds --location london --duration 12 --tuition 38000 --apply-date 2027-07-01
           node bin/study-ops.js audit-profile
           node bin/study-ops.js cost --tuition 38000 --duration 12 --zone inner
+          node bin/study-ops.js portals
+          node bin/study-ops.js form-pack

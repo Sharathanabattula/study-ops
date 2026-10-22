@@ -1,0 +1,107 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  STUDY-OPS · APPLICANT DATA (the facts every application form asks for)
+#
+#  🔒 This is your most sensitive file: passport, address, immigration
+#     history. It stays in data/ (git-ignored), is never sent to any AI
+#     model, and is only read by code on your machine. When a portal form is
+#     filled, Claude sees field LABELS only ("Passport number"); the values
+#     come straight from this file. For extra safety, set STUDY_OPS_HOME
+#     to an encrypted volume.
+#
+#  Write names EXACTLY as in your passport. `study-ops check-application`
+#  validates everything here before you go near a portal.
+#  Dates: YYYY-MM-DD. Phone numbers: international format (+91…).
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+
+personal:
+  title: ""                    # Mr | Ms | Mx | Dr
+  given_names: ""              # As in passport (all given names)
+  family_name: ""              # Surname as in passport. If your passport has none, leave "" and see the README.
+  preferred_name: ""
+  previous_names: ""
+  date_of_birth: ""            # YYYY-MM-DD
+  sex: ""                      # As in passport: M | F | X
+  country_of_birth: ""
+  city_of_birth: ""
+  nationality: ""              # e.g. "India"
+  second_nationality: ""
+
+passport:
+  number: ""                   # Indian passports: 1 letter + 7 digits
+  issue_date: ""
+  expiry_date: ""              # Should outlast your course + visa
+  issuing_country: ""
+  place_of_issue: ""
+
+contact:
+  email: ""
+  phone: ""                    # +91 98765 43210
+  alternate_phone: ""
+
+address:                       # Permanent home address
+  line1: ""
+  line2: ""
+  city: ""
+  state: ""
+  postcode: ""
+  country: ""
+
+correspondence_address_same: true
+
+emergency_contact:
+  name: ""
+  relationship: ""
+  phone: ""
+  email: ""
+
+education:                     # Most recent first
+  - institution: ""
+    country: ""
+    qualification: ""          # e.g. "Bachelor of Technology"
+    subject: ""
+    start_date: ""             # YYYY-MM-DD
+    end_date: ""
+    grade: ""                  # As on your transcript, e.g. "8.4 CGPA"
+    grading_scale: ""          # e.g. "10-point CGPA"
+    language_of_instruction: "English"
+    completed: true
+
+english_test:
+  test: ""                     # IELTS Academic UKVI | PTE Academic UKVI | TOEFL iBT
+  test_date: ""
+  reference_number: ""         # IELTS TRF number / PTE score report code
+  overall: null
+  listening: null
+  reading: null
+  writing: null
+  speaking: null
+
+employment:                    # Most recent first
+  - employer: ""
+    job_title: ""
+    start_date: ""
+    end_date: ""               # "" if current
+    duties: ""
+
+referees:                      # Contact details only; the letters live in recommenders.yaml
+  - name: ""
+    title: ""
+    organisation: ""
+    email: ""                  # Use their institutional email
+    phone: ""
+    relationship: ""
+
+immigration:
+  requires_visa: true
+  previously_studied_in_uk: false
+  previous_uk_visas: ""        # Type and dates, or ""
+  visa_refusals: false         # ANY country. Declare honestly; nondisclosure can lead to a ban
+  visa_refusal_details: ""
+
+funding:
+  source: ""                   # e.g. "Family", "Education loan", "Scholarship"
+  sponsor_name: ""
+
+ucas:                          # Undergraduate applicants only
+  personal_id: ""              # 10 digits, shown as 123-456-7890

@@ -39,6 +39,13 @@ Inspired by [`santifer/career-ops`](https://github.com/santifer/career-ops). The
 - **🤝 LOR Drafter**: plans 2–3 letters with different angles (research, leadership, technical…), gives each its own evidence, and checks the drafts against each other so they don't sound alike. Each is a briefing and draft for the recommender to rewrite and submit.
 - **📄 Academic CV**: turns a job-search resume into a UK academic CV (education and research first, publications, quantified projects) and drops details UK CVs leave out (DOB, photo, marital status).
 
+**Phase 3: Application execution**
+
+- **🧾 Application Data Auditor** (`check-application`): validates passport format and expiry against course + visa leave, date order, gaps, contact formats, English scores against your profile, referee emails and declared refusals before you touch a portal.
+- **🗂️ Portal Manager** (`portals`, `portal set/open`): one dashboard of every portal, account, deadline, document and upload, with the single next action for each. UCAS deadlines are shown for undergraduate applicants.
+- **⌨️ Form Filler** (`fill`, `portal open`): opens the portal in your own browser window and fills fields from `data/applicant.yaml` (UK date formats, split day/month/year, phone country codes, country lists). **You sign in, review and submit**; it never submits, pays or answers declarations.
+- **🎤 Interview Prep** (`interview`, `interview-practice`): question banks for credibility/pre-CAS, Kira-style timed, technical finance, technical CS and academic panel interviews, plus a timed mock interview that scores typed answers and flags anything that contradicts your application.
+
 **Evaluation & visa**
 
 - **🏛️ University Evaluator**: grades any Russell Group programme A–F (1.0–5.0) on admission probability, budget fit, ROI, programme fit and career outcomes.
@@ -85,6 +92,11 @@ Fill in `data/student_profile.md`, then:
 | `study-ops tailor-sop --uni <name> --url <page> [--research-urls …] [--find-faculty] [--words]` | 2 · ≈30% rewrite of your master SOP with verified specifics → `outputs/sops/<uni>.md` | ✅ Ready (needs API key) |
 | `study-ops lor [--only ids] [--programme]` | 9 · LOR drafts from `data/recommenders.yaml` → `outputs/lor/<id>.md` | ✅ Ready (needs API key) |
 | `study-ops academic-cv [--resume file]` | 10 · Resume → `outputs/cv/academic_cv.md` | ✅ Ready (needs API key) |
+| `study-ops check-application` | 11 · Application Data Auditor | ✅ Ready (offline) |
+| `study-ops portals` · `portal set <id> …` · `portal open <id> [--register]` | 13 · Portal Manager | ✅ Ready (open needs Playwright) |
+| `study-ops fill <url> [--overwrite]` · `form-pack` | 12 · Form Filler (assisted browser) / copy-paste sheet | ✅ Ready (Playwright; labels-only AI mapping) |
+| `study-ops interview --uni --course --type <credibility\|kira\|technical-finance\|technical-cs\|academic\|general>` | 14 · Interview question bank → `outputs/interview/` | ✅ Ready (needs API key) |
+| `study-ops interview-practice --uni --type [--count] [--prep] [--answer]` | 14 · Timed mock interview with feedback | ✅ Ready (needs API key) |
 | `study-ops audit-funds --location <london\|outside> --duration <months> --tuition <gbp>` | 3 · UKVI Compliance Engine | ✅ Ready (deterministic) |
 
 Without an API key, `evaluate`, `generate-sop` and `tailor-sop` still run in scaffold mode. The SOP commands then save a ready-to-paste prompt for any model.
@@ -130,6 +142,21 @@ Put your raw story (milestone, projects, work, turning point, goals) in `data/ma
 
 **About LORs.** A reference is the recommender's own testimony. Study-Ops gives each recommender a briefing and a starting draft built only from the `evidence` you list for them. They should rewrite it in their own words, correct anything inexact, and submit it themselves. Many UK universities collect references directly from referees, and some ask applicants not to draft them, so check each programme.
 
+### How portals and forms work (Phase 3)
+
+Study-Ops is an assistant in your browser, not a bot acting for you.
+
+1. `study-ops check-application` must show **0 errors** first. Fix `data/applicant.yaml` until it does.
+2. `study-ops portal set <id> --url <login> --registration-url <signup>` stores the portal (never a password).
+3. `study-ops portal open <id> --register` opens a real Chromium window with its own saved profile for that site. Study-Ops pre-fills the sign-up form. **You** choose the password (in your password manager), solve the CAPTCHA, verify your email and click create. Then run `portal set <id> --account-created --applicant-id …`.
+4. `study-ops portal open <id>`: sign in, go to a form page, press Enter in the terminal. Fields are filled and outlined **blue**. Fields that need you (declarations, criminal record, health, equality monitoring, unsure matches, anything already filled) are outlined **amber**. Repeat page by page. **You** check every value and submit.
+
+**Your data stays local.** Claude maps form labels to keys in a fixed catalog (`Passport number` → `passport.number`). It never sees the values, which are filled by code on your machine; a test enforces this. Mappings are cached per form in `data/forms/`, so repeat visits don't call Claude at all. For portals that block automation, `study-ops form-pack` writes a copy-paste sheet in UK formats.
+
+Install the browser once: `npm install playwright && npx playwright install chromium`. To use an existing Chrome, set `STUDY_OPS_CHROMIUM=/path/to/chrome`.
+
+**Interviews.** `interview` writes likely questions with answer outlines built from your files, plus worked answers for technical rounds. Timings are typical defaults (Kira-style: 45s to prepare, 90s to answer). Every school configures its own, so match your invitation with `--prep` / `--answer`. In credibility interviews, consistency with your application matters most, so practice feedback flags any claim or figure that isn't in your files.
+
 ### Connecting Claude
 
 The two writing and judgement agents use [Anthropic's Claude](https://platform.claude.com) through the official `@anthropic-ai/sdk`.
@@ -145,7 +172,7 @@ How the integration behaves:
 - **Prompt caching.** Your profile and master statement are cached across the SOP draft → critique → revise calls.
 - **Server-side fallbacks** are on (`fallbacks: "default"`). If a request is declined, the API retries it on Anthropic's recommended fallback model. A request declined by every model shows a clear error.
 
-Rough cost on Opus 5.5 ($4 / $20 per million tokens), depending on page length: **about $0.05–0.25 per evaluation**, **$0.10–0.25 per syllabus match**, **$0.20–0.50 for the master SOP**, **$0.30–0.80 per tailored SOP with `--find-faculty`**, **$0.20–0.50 for a set of 3 LORs**, **$0.05–0.15 per CV**, and **roughly $5–12 for a full 24-university shortlist** at 2 programmes each. That last figure includes web search at $10 per 1,000 searches. These are estimates, not measurements. Page extractions are cached for 30 days, so re-runs cost much less. Use `--unis` to keep a shortlist small.
+Rough cost on Opus 5.5 ($4 / $20 per million tokens), depending on page length: **about $0.05–0.25 per evaluation**, **$0.10–0.25 per syllabus match**, **$0.20–0.50 for the master SOP**, **$0.30–0.80 per tailored SOP with `--find-faculty`**, **$0.20–0.50 for a set of 3 LORs**, **$0.05–0.15 per CV**, **$0.05–0.20 per interview bank** and **about $0.02–0.05 per practice answer**, **under $0.01 to map a new form** (cached after the first time), and **roughly $5–12 for a full 24-university shortlist** at 2 programmes each. That last figure includes web search at $10 per 1,000 searches. These are estimates, not measurements. Page extractions are cached for 30 days, so re-runs cost much less. Use `--unis` to keep a shortlist small.
 
 ### `audit-funds` in detail
 
@@ -177,6 +204,10 @@ src/agents/
   8_master_sop.js                narrative plan → interview → draft → critique → revise
   9_lor_drafter.js               distinct-angle LOR briefings + drafts, overlap check
   10_academic_cv.js              resume → UK academic CV, fact checks
+  11_application_auditor.js      applicant.yaml validation + profile cross-checks (pure)
+  12_form_filler.js              DOM field extraction → labels-only mapping → local fill
+  13_portal_manager.js           portal dashboard, next actions, assisted sessions
+  14_interview_prep.js           question banks + timed practice with feedback
 src/llm/claude.js                the only module that calls an LLM (model, caching, fallbacks, errors)
 src/lib/programme.js             shared, cached programme-page extraction (data/programmes/)
 src/lib/specifics.js             modules, faculty and labs, verified on official pages
@@ -189,6 +220,7 @@ config/ukvi_rules.yaml           dated UKVI financial rules (edit when gov.uk ch
 config/uk_universities.yaml      24 Russell Group members: domains, UKVI location, selectivity, SOP tone
 config/grade_equivalence.yaml    CGPA formulas, UK class bands by tier, US GPA, English tiers
 config/living_costs.yaml         monthly living costs: inner / outer / outside London
+config/portals.yaml              application routes; UCAS cycle deadlines
 templates/                       pristine copies used by `init` (incl. elite_sop_framework.md)
 data/                            YOUR state (git-ignored)
 reports/, outputs/                agent output (git-ignored)
@@ -200,6 +232,8 @@ reports/, outputs/                agent output (git-ignored)
 - `data/templates/elite_sop_framework.md`: your editable copy of the Elite SOP Constraints.
 - `data/recommenders.yaml`: 2–3 recommenders, each with the evidence they personally observed.
 - `data/resume.md`: your current resume, pasted as text.
+- `data/applicant.yaml`: 🔒 passport, contact, education, employment, referees, immigration history. Local code only.
+- `data/browser/`, `data/forms/`: assisted-browser profiles (signed-in sessions) and cached form mappings.
 - `data/sop_interview.md`: questions from `master-sop`, answered by you.
 - `data/outcomes.yaml`: past admission results (anonymous) that turn the matrix into a data-driven one.
 - `data/tracker.yaml`: one entry per programme, with a status lifecycle running from `researching` through `cas_issued`, `visa_granted` and `enrolled`.
@@ -217,6 +251,7 @@ STUDY_OPS_DEBUG=1   # print stack traces
 
 - ~~**0.2** Claude provider, evaluator extraction and scoring, SOP generate → critique → revise.~~ ✅
 - ~~**0.3** Phase 1 intake: profile audit, Safe/Target/Reach matrix, cost & ROI, syllabus matching.~~ ✅
+- ~~**0.6** Phase 3 execution: application auditor, portal manager, assisted form filling, interview prep.~~ ✅
 - ~~**0.5** Elite SOP engine: framework-as-system-prompt, `generate-sop --prof --module --lab`, rule checks in code.~~ ✅
 - ~~**0.4** Phase 2 positioning: master SOP, ≈30% tailoring with verified specifics, distinct LORs, academic CV.~~ ✅
 - **1.2** `study-ops tracker` (status board, deadline alerts), CAS checklist agent.

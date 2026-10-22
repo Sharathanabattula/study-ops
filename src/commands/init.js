@@ -19,6 +19,7 @@ const SCAFFOLD = [
   { template: 'resume.md', target: PATHS.resume },
   { template: 'master_sop_raw.md', target: PATHS.masterRaw },
   { template: 'elite_sop_framework.md', target: PATHS.eliteFramework },
+  { template: 'applicant.yaml', target: PATHS.applicant },
 ];
 
 /**
@@ -78,6 +79,10 @@ export function printWelcome({ created, skipped }) {
     cmd('study-ops tailor-sop --uni LSE --url <page>', '≈30% rewrite of your master SOP'),
     cmd('study-ops lor', '2–3 distinct recommender drafts'),
     cmd('study-ops academic-cv', 'resume → UK academic CV'),
+    cmd('study-ops check-application', 'validate passport, dates, scores'),
+    cmd('study-ops portals', 'every portal, deadline and next action'),
+    cmd('study-ops portal open <id> [--register]', 'your browser; Study-Ops fills, you submit'),
+    cmd('study-ops interview --type credibility …', 'question bank + interview-practice'),
     cmd('study-ops audit-funds --location london \\', 'UKVI proof of funds'),
     cmd('    --duration 12 --tuition 38000'),
   ]);

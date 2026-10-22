@@ -1,0 +1,26 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  APPLICATION ROUTES
+#  Consumed by src/agents/13_portal_manager.js
+#
+#  UK postgraduate applications go straight to each university's own portal;
+#  record each programme's portal URL in data/tracker.yaml (portal.url).
+#  Undergraduate applications go through UCAS.
+#  Dates change every cycle; verify on ucas.com.
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+
+routes:
+  postgraduate:
+    via: university
+    note: "Apply directly on each university's portal. Most allow multiple programmes, each with its own deadline and fee."
+  undergraduate:
+    via: ucas
+    name: "UCAS Undergraduate"
+    url: "https://www.ucas.com/"
+    max_choices: 5
+    personal_statement: "Three questions (structured format from 2026 entry). Check the current character limit on ucas.com."
+    cycles:
+      "2027":
+        - { label: "Oxford, Cambridge, most medicine/dentistry/veterinary", deadline: "2026-10-15T18:00:00+01:00" }
+        - { label: "Equal consideration (most other courses)", deadline: "2027-01-13T18:00:00Z" }
+    personal_id_format: "10 digits, shown as 123-456-7890"

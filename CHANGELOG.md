@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.0 · 2026-10-22
+
+Phase 3: application execution.
+
+- `templates/applicant.yaml` → `data/applicant.yaml`: passport, contact, address, education, English test, employment, referees, immigration and UCAS fields. Read only by local code.
+- `check-application` (agent 11): deterministic validation and cross-checks with the profile: passport format and expiry vs course + visa leave, ISO dates and ordering, unexplained gaps, email/phone formats, English scores vs profile and validity, referee count and institutional emails, refusal details, UCAS ID.
+- `fill <url>` / `portal open <id>` (agent 12): assisted Chromium session with a persistent per-site profile; DOM field extraction; offline synonym matcher plus Claude mapping of **labels only** (cached per form); local filling with UK date formats, split dates, phone parts and option matching; never submits, never overwrites, never fills declarations, criminal-record, health, equality-monitoring, password or consent fields; blue/amber highlighting.
+- `form-pack`: UK-formatted copy-paste sheet for portals that block automation.
+- `portals`, `portal set` (agent 13): dashboard of accounts, deadlines, documents, uploads and the next action per application; UCAS cycle deadlines for undergraduates; passwords refused.
+- `interview`, `interview-practice` (agent 14): credibility/pre-CAS, Kira-style, technical finance, technical CS, academic and general banks with answer outlines from the student's files; timed practice with rubric scores, consistency flags, pacing and filler checks; session logs.
+- Playwright as an optional dependency (`STUDY_OPS_CHROMIUM` to reuse a local browser); CI installs Chromium and runs a real-browser fill test plus a privacy test that no applicant value reaches any LLM request.
+
 ## 0.5.0 · 2026-10-22
 
 Elite SOP engine.

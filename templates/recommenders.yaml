@@ -13,7 +13,7 @@
 schema_version: 1
 
 recommenders:
-  - id: academic-1                 # short, unique; becomes output/lor/<id>.md
+  - id: academic-1                 # short, unique; becomes outputs/lor/<id>.md
     name: ""                       # e.g. "Dr. A. Rao"
     title: ""                      # e.g. "Associate Professor of Biotechnology"
     organisation: ""

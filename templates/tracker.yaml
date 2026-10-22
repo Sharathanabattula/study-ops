@@ -31,9 +31,12 @@ applications:
 
     portal:
       name: ""                           # e.g. "LSE Graduate Admissions"
-      url: ""
-      username: ""                       # Never store passwords here
+      url: ""                            # Login / application page
+      registration_url: ""               # Account-creation page, if different
+      username: ""                       # Never store passwords here; use a password manager
       applicant_id: ""
+      account_created: false
+      application_fee_paid: false
 
     deadlines:
       application: null                  # YYYY-MM-DD (or round, e.g. "Round 2")
@@ -69,7 +72,11 @@ applications:
       brp_or_evisa: ""
 
     documents:
-      sop_version: ""                    # path under output/sop/
+      sop_version: ""                    # path under outputs/sops/
+      sop_uploaded: false
+      cv_uploaded: false
+      passport_uploaded: false
+      english_test_uploaded: false
       references_submitted: 0
       transcripts_uploaded: false
 

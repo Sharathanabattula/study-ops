@@ -1,6 +1,6 @@
 {
   "name": "study-ops",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Local-first, multi-agent CLI that automates the study-abroad pipeline. Phase 1: UK (Russell Group admissions, CAS tracking, UKVI Student visa compliance).",
   "author": "Sharath Chandra Anabattula",
   "homepage": "https://github.com/Sharathanabattula/study-ops#readme",
@@ -50,5 +50,8 @@
     "marked": "^18.1.1",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.64.1"
   }
 }

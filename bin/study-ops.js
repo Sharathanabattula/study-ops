@@ -8,6 +8,7 @@
 import 'dotenv/config';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import readline from 'node:readline/promises';
 import { Command, InvalidArgumentError } from 'commander';
 
 import { initWorkspace, printWelcome } from '../src/commands/init.js';
@@ -21,6 +22,10 @@ import { matchSyllabus } from '../src/agents/7_syllabus_matcher.js';
 import { buildMasterSop } from '../src/agents/8_master_sop.js';
 import { MAX_OVERLAP, draftLors } from '../src/agents/9_lor_drafter.js';
 import { buildAcademicCv } from '../src/agents/10_academic_cv.js';
+import { checkApplication } from '../src/agents/11_application_auditor.js';
+import { assistedFillSession, formPack } from '../src/agents/12_form_filler.js';
+import { portalDashboard, portalOpen, portalSet } from '../src/agents/13_portal_manager.js';
+import { TYPES as INTERVIEW_TYPES, generateInterviewBank, practiceSession } from '../src/agents/14_interview_prep.js';
 import { getProgramme, totalTuition, yearOneTuition } from '../src/lib/programme.js';
 import { loadProfile } from '../src/lib/profile.js';
 import { explainError, model } from '../src/llm/claude.js';
@@ -432,6 +437,173 @@ program
     success(`Saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
     console.log();
   }));
+
+/* ─────────────── Phase 3 · Application execution ─────────────── */
+
+program
+  .command('check-application')
+  .description('Validate data/applicant.yaml (passport, dates, contacts, scores) before any portal')
+  .action(run(async () => {
+    banner('Application Data Auditor');
+    const findings = await checkApplication();
+    const errors = findings.filter((f) => f.level === 'error');
+    const warns = findings.filter((f) => f.level === 'warn');
+    for (const f of errors) fail(`${color.bold(f.field)}  ${f.message}`);
+    for (const f of warns) warn(`${color.bold(f.field)}  ${f.message}`);
+    for (const f of findings.filter((x) => x.level === 'ok')) success(`${color.bold(f.field)}  ${f.message}`);
+    console.log();
+    note(`${errors.length} error(s), ${warns.length} warning(s). Fix errors before filling any portal.`);
+    console.log();
+    if (errors.length) process.exitCode = 1;
+  }));
+
+program
+  .command('portals')
+  .description('Dashboard of every application portal: accounts, deadlines, documents, next action')
+  .action(run(async () => {
+    banner('Portal Manager');
+    const { rows, ucas } = await portalDashboard();
+    if (!rows.length) {
+      warn('No applications in data/tracker.yaml yet. Run study-ops shortlist, or add entries by hand.');
+      console.log();
+      return;
+    }
+    for (const r of rows) {
+      const when = r.daysLeft === null ? color.muted('no deadline set') : r.daysLeft < 0 ? color.err(`deadline passed (${r.deadline})`) : (r.urgent ? color.err : color.ok)(`${r.daysLeft} days · ${r.deadline}`);
+      const tick = (v) => (v ? color.ok('✓') : color.muted('·'));
+      panel(`${r.university} · ${r.programme ?? ''}`.slice(0, 70), [
+        row('Status', `${r.status ?? '–'}${r.applicantId ? color.muted(`  ID ${r.applicantId}`) : ''}`, 10),
+        row('Deadline', when, 10),
+        row('Ready', `${tick(r.account)} account  ${tick(r.docs.sop)} SOP  ${tick(r.docs.lors >= 2)} LORs (${r.docs.lors})  ${tick(r.docs.cv)} CV`, 10),
+        row('Next', color.accent(r.next), 10),
+      ], { tint: r.urgent ? color.err : color.brand });
+    }
+    if (ucas) {
+      panel(ucas.name, ucas.deadlines.map((d) => row(d.label.slice(0, 44), d.daysLeft < 0 ? color.muted('passed') : `${d.daysLeft} days`, 46)));
+      note(ucas.personal_statement);
+    }
+    console.log();
+  }));
+
+const portal = program.command('portal').description('Update or open one application’s portal');
+
+portal
+  .command('set')
+  .description('Record portal details (never passwords) for an application in the tracker')
+  .argument('<id>', 'application id from data/tracker.yaml')
+  .option('--url <url>', 'login / application page')
+  .option('--registration-url <url>', 'account-creation page')
+  .option('--name <name>', 'portal name')
+  .option('--username <username>', 'login username or email')
+  .option('--applicant-id <id>', 'applicant/reference number from the portal')
+  .option('--account-created', 'mark the account as created')
+  .option('--fee-paid', 'mark the application fee as paid')
+  .option('--status <status>', 'e.g. drafting, submitted, interview')
+  .option('--deadline <YYYY-MM-DD>', 'application deadline')
+  .option('--uploaded <items>', 'comma-separated: sop, cv, passport, english, transcripts')
+  .action(run(async (id, o) => {
+    banner('Portal Manager');
+    const app = await portalSet(id, { ...o, uploaded: o.uploaded?.split(',').map((s) => s.trim()), feePaid: o.feePaid });
+    success(`Updated ${color.bold(id)}: ${app.portal?.url ?? 'no URL'} · account ${app.portal?.account_created ? 'created' : 'not yet'}`);
+    console.log();
+  }));
+
+portal
+  .command('open')
+  .description('Open the portal in your own browser window and fill pages on request (you submit)')
+  .argument('<id>', 'application id from data/tracker.yaml')
+  .option('--register', 'open the registration page to create your account')
+  .action(run(async (id, o) => {
+    banner('Assisted Portal Session');
+    note('A browser window opens. Sign in, solve any CAPTCHA, and navigate yourself. Study-Ops fills fields; it never submits.');
+    const r = await portalOpen(id, { register: o.register, onReport: printFillReport });
+    if (r.hint) note(r.hint);
+    console.log();
+  }));
+
+program
+  .command('fill')
+  .description('Open any application form and fill it from data/applicant.yaml (you review and submit)')
+  .argument('<url>', 'form or portal URL')
+  .option('--overwrite', 'replace values already in the form')
+  .action(run(async (url, o) => {
+    banner('Form Filler');
+    note('Values come from data/applicant.yaml and are filled locally. Claude only sees field labels.');
+    await assistedFillSession(url, { overwrite: o.overwrite, onReport: printFillReport });
+    console.log();
+  }));
+
+program
+  .command('form-pack')
+  .description('Copy-paste sheet of every application value, UK-formatted (for portals that block autofill)')
+  .option('-n, --name <name>', 'file name', 'applicant')
+  .action(run(async (o) => {
+    banner('Form Pack');
+    const out = await formPack({ name: o.name });
+    success(`Saved to ${color.bold(path.relative(process.cwd(), out))}`);
+    warn('Contains passport data. Keep it local and delete it when done.');
+    console.log();
+  }));
+
+program
+  .command('interview')
+  .description('Generate likely interview questions with answer outlines (credibility, Kira, technical…)')
+  .requiredOption('-u, --uni <name>', 'university')
+  .requiredOption('-c, --course <name>', 'course')
+  .requiredOption('-t, --type <type>', `one of: ${Object.keys(INTERVIEW_TYPES).join(', ')}`)
+  .option('--url <url>', 'programme page, for course facts and fees')
+  .option('-n, --count <n>', 'number of questions', positiveNumber, 12)
+  .action(run(async (o) => {
+    banner('Interview Prep');
+    const r = await generateInterviewBank({ university: o.uni, course: o.course, type: o.type, url: o.url, count: o.count, onProgress: progress });
+    console.log();
+    panel(INTERVIEW_TYPES[o.type].label, r.questions.slice(0, 8).map((q, i) => `${String(i + 1).padStart(2)}. ${q.question.length > 72 ? `${q.question.slice(0, 71)}…` : q.question}`), { tint: color.brand });
+    for (const w of r.warnings) warn(w);
+    success(`${r.questions.length} questions saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
+    note(`Practise: study-ops interview-practice --uni "${o.uni}" --type ${o.type}`);
+    console.log();
+  }));
+
+program
+  .command('interview-practice')
+  .description('Timed mock interview: answer by typing, get scored feedback')
+  .requiredOption('-u, --uni <name>', 'university (as used with `interview`)')
+  .requiredOption('-t, --type <type>', `one of: ${Object.keys(INTERVIEW_TYPES).join(', ')}`)
+  .option('-n, --count <n>', 'questions this session', positiveNumber, 5)
+  .option('--prep <seconds>', 'preparation time', positiveNumber)
+  .option('--answer <seconds>', 'answer time', positiveNumber)
+  .action(run(async (o) => {
+    banner('Mock Interview');
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const countdown = async (seconds, label) => {
+      for (let s = seconds; s > 0; s--) {
+        process.stdout.write(`\r  ${color.muted(`${label}: ${s}s `)}`);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      process.stdout.write('\r\x1b[K');
+    };
+    try {
+      const { results, logPath } = await practiceSession({
+        university: o.uni, type: o.type, count: o.count, prep: o.prep, answer: o.answer,
+        io: { ask: (q) => rl.question(`  ${q}`), print: (s) => console.log(`  ${s}`), countdown },
+      });
+      console.log();
+      success(`${results.length} answers reviewed. Log saved to ${color.bold(path.relative(process.cwd(), logPath))}`);
+    } finally {
+      rl.close();
+    }
+    console.log();
+  }));
+
+/** Print what one fill pass did. */
+function printFillReport(r) {
+  console.log();
+  success(`Filled ${r.filled.length} field(s) ${color.muted('(blue outline)')}`);
+  if (r.protectedFields.length) warn(`Answer yourself: ${r.protectedFields.map((f) => f.label).join(' · ').slice(0, 160)}`);
+  for (const f of r.review.slice(0, 8)) warn(`${f.label || f.id}: ${f.reason}`);
+  if (r.unmapped.length) note(`Not recognised: ${r.unmapped.map((f) => f.label || f.id).join(' · ').slice(0, 160)}`);
+  note('Check every amber field and each value, then save or submit in the portal yourself.');
+}
 
 /* ─────────────── Visa ─────────────── */
 
