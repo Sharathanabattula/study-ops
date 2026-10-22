@@ -212,6 +212,11 @@ export async function generate({ system, prompt, effort = 'high' }) {
  * @returns {Error}
  */
 export function explainError(err) {
+  if (err instanceof Anthropic.APIError && /credit balance is too low/i.test(String(err.message))) {
+    return new Error(claudeCodeAvailable()
+      ? 'Your Anthropic API credit is $0, but you don\'t need it: you have Claude Code installed. Add STUDY_OPS_PROVIDER=claude-code to .env (or delete ANTHROPIC_API_KEY) to run on your Claude subscription, then run `node bin/study-ops.js doctor`.'
+      : 'Your Anthropic API credit is $0. Either add credit at https://platform.claude.com/settings/billing, or install Claude Code, sign in with your Claude subscription, and remove ANTHROPIC_API_KEY from .env.');
+  }
   if (err instanceof Anthropic.AuthenticationError) {
     return new Error('Anthropic rejected the API key. Check ANTHROPIC_API_KEY in .env.');
   }

@@ -85,3 +85,10 @@ test('errors: not signed in, wrong shape', async () => {
   await assert.rejects(generate({ system: ['S'], prompt: 'FAIL_AUTH' }), /not signed in/);
   await assert.rejects(structured({ system: ['S'], prompt: 'BAD_SHAPE', schema: z.object({ fee_gbp: z.number() }) }), /did not match the expected format/);
 });
+
+test('an empty API balance points to the subscription instead of a top-up', async () => {
+  const Anthropic = (await import('@anthropic-ai/sdk')).default;
+  const { explainError } = await import('../src/llm/claude.js');
+  const err = new Anthropic.BadRequestError(400, { type: 'error', error: { type: 'invalid_request_error', message: 'Your credit balance is too low to access the Anthropic API.' } }, 'Your credit balance is too low to access the Anthropic API.', new Headers());
+  assert.match(explainError(err).message, /STUDY_OPS_PROVIDER=claude-code/);
+});
