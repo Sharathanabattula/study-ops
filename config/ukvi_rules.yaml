@@ -50,3 +50,17 @@ funds_holding:
 cas:
   validity_months: 6                # A CAS can be used for one application within 6 months
   earliest_apply_before_course_months: 6   # Apply from outside the UK up to 6 months before start
+
+visa_costs:
+  application_fee: 558               # gov.uk/student-visa, applying from outside the UK (Oct 2026)
+  ihs_per_year: 776                  # Immigration Health Surcharge, student rate
+  ihs_half_year: 388                 # Charged for a final part-year of 6 months or less
+  # Visa length = course length + this many extra months, by course length
+  extra_leave_months:
+    - { course_months_at_least: 12, extra: 4 }
+    - { course_months_at_least: 6, extra: 2 }
+
+graduate_route:
+  # Post-study work permission for bachelor's/master's graduates
+  - { applications_from: null, months: 24 }
+  - { applications_from: "2027-01-01", months: 18 }   # Statement of Changes, 14 Oct 2025

@@ -1,0 +1,18 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  LIVING COSTS FOR COST-OF-ATTENDANCE (GBP per month)
+#  Consumed by src/agents/6_cost_roi_mapper.js
+#
+#  This is NOT the UKVI visa figure (config/ukvi_rules.yaml covers that).
+#  It's what you expect to actually spend. UKVI uses one rate for all of
+#  London. In practice inner London (roughly zones 1–2) usually costs more
+#  than outer London. The defaults below equal the UKVI minimums, so they're
+#  a floor. Replace them with your university's own cost-of-living
+#  estimate, or with real rent quotes.
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+currency: GBP
+monthly:
+  inner_london: 1529
+  outer_london: 1529
+  outside_london: 1171
+note: "Defaults are UKVI minimums (Oct 2026). Raise inner_london/outer_london to your real estimate."

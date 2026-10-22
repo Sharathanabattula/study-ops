@@ -20,16 +20,23 @@ target:
   intake: "2027-09"            # YYYY-MM
   subjects: []                 # e.g. ["Finance", "Data Science"]
   study_location: "london"     # london | outside-london (drives UKVI maintenance)
+  living_zone: "inner"         # inner | outer: where in London you'd live (cost of attendance)
   shortlist: []                # e.g. ["LSE", "Imperial", "UCL", "Warwick"]
 
 academics:
   degree: ""                   # e.g. "B.Tech Biotechnology"
   institution: ""
+  institution_tier: null       # 1 | 2 | 3. Many UK universities publish tiered India lists; 1 = IIT/NIT/top NIRF
   graduation_year: null
   cgpa: null                   # e.g. 8.4
   cgpa_scale: 10               # 4 | 5 | 10 | 100
-  uk_equivalent: ""            # e.g. "2:1" (fill once verified via UK ENIC / uni page)
-  backlogs: 0
+  percentage: null             # Official % if your transcript states one (overrides conversion)
+  cgpa_conversion: null        # aicte ((CGPA−0.75)×10) | cbse (×9.5) | x10 | custom
+  cgpa_conversion_custom: { multiply: null, add: null }
+  uk_equivalent: ""            # Fill once verified via a university's own India page
+  backlogs: { active: 0, cleared: 0 }
+  modules:                     # Undergraduate modules, used by `study-ops match-syllabus`
+    - { name: "", grade: "", credits: null, description: "" }
 
 english:
   test: ""                     # IELTS Academic UKVI | PTE Academic UKVI | TOEFL | Waiver
@@ -54,8 +61,17 @@ budget:
   currency: "GBP"
   max_tuition: null            # Annual tuition ceiling
   max_total_year_one: null     # Tuition + living + visa + IHS + flights
+  max_total_course: null       # Whole-course all-in ceiling (used before max_total_year_one)
+  flights_and_setup_gbp: null  # Flights, deposits, setup
+  fx_gbp_to_home: null         # e.g. 112 (INR per GBP) to show costs in your currency
   funding_sources: []          # e.g. ["Family savings", "Education loan", "Chevening"]
   loan_sanctioned: false
+
+career:                        # For ROI. Study-Ops has no salary data; use real figures you trust.
+  current_salary_annual: null
+  current_salary_currency: "INR"
+  expected_salary_annual_gbp: null   # UK role after graduating (programme employment report)
+  expected_home_salary_annual: null  # Alternative if you plan to return home (same currency as current)
 
 documents:
   transcripts: false

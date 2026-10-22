@@ -1,0 +1,26 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  STUDY-OPS · PAST ADMISSION OUTCOMES (your "historical acceptance" data)
+#
+#  UK universities don't publish acceptance rates by applicant profile.
+#  Consultancies rely on their own case history, and this file is where yours
+#  goes: your own past results, your peers', or your consultancy's past cases.
+#
+#  Once a university has 5 or more outcomes within ±5 percentage points of
+#  your grade, `study-ops shortlist` uses their admit rate for Safe/Target/Reach:
+#    ≥ 70% admitted → Safe · 40–69% → Target · < 40% → Reach
+#
+#  Grade fields work like the profile's: percentage, or cgpa + cgpa_scale
+#  (+ cgpa_conversion). Keep it anonymous: no names.
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+
+outcomes: []
+  # - university: lse            # registry key (see config/uk_universities.yaml)
+  #   programme: "MSc Finance"
+  #   intake: "2026-09"
+  #   percentage: 72
+  #   institution_tier: 1
+  #   ielts_overall: 7.5
+  #   backlogs: 0
+  #   work_months: 24
+  #   result: admit              # admit | reject | waitlist | withdrawn

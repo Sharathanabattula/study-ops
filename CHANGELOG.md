@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 · 2026-10-22
+
+Phase 1 intake: strategic profiling and university shortlisting.
+
+- `audit-profile` (agent 4): CGPA → percentage (AICTE / CBSE / ×10 / custom), percentage → estimated UK classification by institution tier, reference US GPA, backlog audit (active vs cleared), English vs UKVI B2 and Russell Group tiers, test validity at intake, study-gap flag.
+- `shortlist` (agent 5): per-university programme discovery via Claude web search limited to official domains, cached requirement extraction, deterministic Safe/Target/Reach classification with stated basis and confidence, optional historical-outcomes override from `data/outcomes.yaml`, cost of attendance per programme, Markdown matrix and tracker entries.
+- `cost` (agent 6): whole-course cost of attendance with inner/outer/outside-London living costs, £558 visa fee, IHS for the full visa length, budget fit, ROI payback and the Graduate Route length (18 months for applications from 1 Jan 2027).
+- `match-syllabus` (agent 7): prerequisites with source quotes, module-by-module match, bridging plan and statement points. Module names not in the profile are dropped.
+- Shared programme catalog (`src/lib/programme.js`) with a 30-day cache. The evaluator now uses it, along with the profile audit.
+- Profile template: institution tier, CGPA conversion, backlogs object, modules, living zone, career/salary block, whole-course budget and FX rate.
+- New config: `grade_equivalence.yaml`, `living_costs.yaml`; visa costs and Graduate Route in `ukvi_rules.yaml`; selectivity in the registry.
+
 ## 0.2.0 · 2026-10-22
 
 Claude is now connected as the LLM provider.

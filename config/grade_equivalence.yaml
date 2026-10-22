@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  GRADE EQUIVALENCE: home-country grades → UK classification / US GPA
+#  Consumed by src/agents/4_profile_auditor.js
+#
+#  ⚠  There is no single official conversion. Every UK university publishes its
+#     own country tables, often split by institution tier. Where a programme
+#     page states an India-specific threshold, Study-Ops uses that instead.
+#     The bands below are an editorial starting point. Edit them freely.
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+
+# CGPA (10-point) → percentage. Use the formula printed on your transcript.
+cgpa_to_percentage:
+  aicte:
+    label: "AICTE / VTU: (CGPA − 0.75) × 10"
+    multiply: 10
+    add: -7.5
+  cbse:
+    label: "CBSE-style: CGPA × 9.5"
+    multiply: 9.5
+    add: 0
+  x10:
+    label: "Direct: CGPA × 10 (e.g. Anna University)"
+    multiply: 10
+    add: 0
+
+# Percentage → estimated UK classification, by institution tier.
+#   tier 1: institutions most UK universities rank highest (e.g. IITs, NITs,
+#           top NIRF). Lower thresholds apply.
+#   tier 2: other recognised universities (the default when tier is unknown).
+#   tier 3: institutions some UK universities list as lower tier.
+uk_classification:
+  india:
+    confidence: low
+    tiers:
+      1: { first: 70, upper_second: 60, lower_second: 55 }
+      2: { first: 75, upper_second: 65, lower_second: 55 }
+      3: { first: 80, upper_second: 70, lower_second: 60 }
+
+# Percentage → US 4.0 GPA (reference only; UK applications don't use it).
+us_gpa:
+  india:
+    # WES-style bands. WES converts course by course; applying them to an
+    # aggregate percentage is a rough approximation.
+    wes_bands:
+      - { min: 60, gpa: 4.0 }
+      - { min: 50, gpa: 3.0 }
+      - { min: 40, gpa: 2.0 }
+      - { min: 35, gpa: 1.0 }
+      - { min: 0, gpa: 0.0 }
+
+backlogs:
+  # Editorial thresholds for how backlogs read on a UK application.
+  note: "Policies vary by university. Some top programmes scrutinise any backlog; many accept cleared backlogs."
+  cleared_caution_above: 5
+  cleared_risk_above: 10
+
+english:
+  # UKVI minimum for degree-level study is CEFR B2. In IELTS for UKVI terms
+  # that is 5.5 in each component. Universities set their own, higher bars.
+  ukvi_b2_ielts_each_component: 5.5
+  validity_years: 2
+  # Common Russell Group requirement tiers (programmes publish their own).
+  ielts_tiers:
+    - { name: "Standard", overall: 6.5, min_component: 6.0 }
+    - { name: "Higher", overall: 7.0, min_component: 6.5 }
+    - { name: "Highest", overall: 7.5, min_component: 7.0 }

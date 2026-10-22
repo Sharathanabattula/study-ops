@@ -21,6 +21,7 @@ export const PATHS = Object.freeze({
   profile: path.join(HOME, 'data', 'student_profile.md'),
   tracker: path.join(HOME, 'data', 'tracker.yaml'),
   personalStatement: path.join(HOME, 'data', 'personal_statement.md'),
+  outcomes: path.join(HOME, 'data', 'outcomes.yaml'),
   reports: path.join(HOME, 'reports'),
   sopOutput: path.join(HOME, 'output', 'sop'),
   templates: path.join(PACKAGE_ROOT, 'templates'),

@@ -14,10 +14,13 @@ import { exists } from './files.js';
  * touched. Nested objects are merged key by key.
  *
  * @param {Record<string, any> & { id: string }} entry
- * @param {string} [trackerPath]
+ * @param {object} [opts]
+ * @param {Record<string, any>} [opts.defaults]  Fields set only when the entry is new
+ *   (e.g. `status: shortlisted`), so progress you've recorded is never overwritten.
+ * @param {string} [opts.trackerPath]
  * @returns {Promise<'created' | 'updated' | 'skipped'>} `skipped` if there is no tracker file.
  */
-export async function upsertApplication(entry, trackerPath = PATHS.tracker) {
+export async function upsertApplication(entry, { defaults = {}, trackerPath = PATHS.tracker } = {}) {
   if (!(await exists(trackerPath))) return 'skipped';
   const doc = YAML.parseDocument(await fs.readFile(trackerPath, 'utf8'));
   if (!doc.has('applications')) doc.set('applications', doc.createNode([]));
@@ -26,7 +29,7 @@ export async function upsertApplication(entry, trackerPath = PATHS.tracker) {
   const index = apps.items.findIndex((item) => item.get?.('id') === entry.id);
 
   if (index === -1) {
-    doc.addIn(['applications'], doc.createNode(entry));
+    doc.addIn(['applications'], doc.createNode({ id: entry.id, ...defaults, ...entry }));
   } else {
     for (const [path, value] of leafPaths(entry)) doc.setIn(['applications', index, ...path], value);
   }

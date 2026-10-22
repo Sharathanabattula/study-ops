@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import Anthropic from '@anthropic-ai/sdk';
+import { recordingClient } from './helpers.js';
 
 // Isolate the workspace before any module reads PATHS.
 const home = await fs.mkdtemp(path.join(os.tmpdir(), 'study-ops-'));
@@ -12,6 +12,7 @@ process.env.ANTHROPIC_API_KEY = 'test-key';
 delete process.env.STUDY_OPS_MODEL;
 
 const { setClient, structured } = await import('../src/llm/claude.js');
+const record = (respond) => recordingClient(setClient, respond);
 const { RequirementsSchema, buildFacts, evaluateUniversity } = await import('../src/agents/1_university_evaluator.js');
 const { tailorPersonalStatement, countWords } = await import('../src/agents/2_sop_tailor.js');
 const { initWorkspace } = await import('../src/commands/init.js');
@@ -41,41 +42,16 @@ const PAGE = `<html><head><title>MSc Finance | LSE</title></head><body><h1>MSc F
 ${'<p>Filler about the programme and its modules in corporate finance and asset pricing.</p>'.repeat(5)}</body></html>`;
 const fakePageFetch = async () => new Response(PAGE, { status: 200, headers: { 'content-type': 'text/html' } });
 
-/** A real SDK client whose HTTP layer is replaced, so request bodies are exactly what the SDK sends. */
-function recordingClient(respond) {
-  const requests = [];
-  const fetch = async (url, init) => {
-    const body = JSON.parse(init.body);
-    requests.push({ url: String(url), headers: new Headers(init.headers), body });
-    const reply = respond(body, requests.length);
-    const message = { id: `msg_${requests.length}`, type: 'message', role: 'assistant', model: body.model, stop_reason: 'end_turn', stop_details: null, usage: { input_tokens: 10, output_tokens: 10 }, content: [{ type: 'text', text: reply }] };
-    if (body.stream) {
-      const events = [
-        { type: 'message_start', message: { ...message, content: [], stop_reason: null } },
-        { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
-        { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: reply } },
-        { type: 'content_block_stop', index: 0 },
-        { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_details: null }, usage: { output_tokens: 10 } },
-        { type: 'message_stop' },
-      ];
-      const sse = events.map((e) => `event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`).join('');
-      return new Response(sse, { status: 200, headers: { 'content-type': 'text/event-stream' } });
-    }
-    return new Response(JSON.stringify(message), { status: 200, headers: { 'content-type': 'application/json' } });
-  };
-  setClient(new Anthropic({ apiKey: 'test-key', fetch, maxRetries: 0 }));
-  return requests;
-}
-
 const REQUIREMENTS = {
   programme_title: 'MSc Finance', award: 'MSc', duration_months: 10, intake: 'September 2027',
   tuition_international_gbp: 41000, tuition_basis: 'total_course', application_deadlines: [],
   academic_requirement: 'UK 2:1', international_equivalent: null, ielts_overall: 7, ielts_min_component: 7,
   pte_overall: null, work_experience: null, tests_required: null, career_outcomes: null, scholarships: [], notes: null,
+  min_uk_classification: 'upper_second', home_country_min_percentage: 65, home_country_min_cgpa_10: null, subject_background: 'Quantitative degree with calculus and statistics',
 };
 
 test('request shape: Opus 5.5, server-side fallbacks, cached system, structured output', async () => {
-  const requests = recordingClient(() => JSON.stringify(REQUIREMENTS));
+  const requests = record(() => JSON.stringify(REQUIREMENTS));
   const out = await structured({ system: ['rules', 'context'], prompt: 'extract', schema: RequirementsSchema, effort: 'medium' });
   assert.equal(out.programme_title, 'MSc Finance');
 
@@ -107,7 +83,7 @@ test('buildFacts: band gaps and budget computed deterministically', async () => 
 });
 
 test('evaluate end-to-end: extract → score → report + tracker', async () => {
-  const requests = recordingClient((body) => body.messages[0].content.startsWith('Extract')
+  const requests = record((body) => body.messages[0].content.startsWith('Extract')
     ? JSON.stringify(REQUIREMENTS)
     : JSON.stringify({
         dimensions: [
@@ -144,7 +120,7 @@ test('evaluate end-to-end: extract → score → report + tracker', async () => 
 
 test('generate-sop end-to-end: draft → critique → revise', async () => {
   await fs.writeFile(path.join(home, 'data', 'personal_statement.md'), '# Master\nI scaled assays at a CRO.');
-  const requests = recordingClient((body, n) => [
+  const requests = record((body, n) => [
     'First draft about assays.',
     JSON.stringify({ scores: { specificity: 3, programme_fit: 2, evidence: 3, tone_match: 3, why_uk_and_goals: 3, voice: 4 }, unsupported_claims: ['I led a team of 50'], cliches: [], fixes: ['Cut the team claim'] }),
     'Final draft about assays at a CRO.',

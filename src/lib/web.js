@@ -45,7 +45,7 @@ export async function fetchPageText(url, { fetchImpl = fetch } = {}) {
   let res;
   try {
     res = await fetchImpl(url, {
-      headers: { 'user-agent': 'study-ops/0.2 (+https://github.com/Sharathanabattula/study-ops)', accept: 'text/html' },
+      headers: { 'user-agent': 'study-ops/0.3 (+https://github.com/Sharathanabattula/study-ops)', accept: 'text/html' },
       redirect: 'follow',
       signal: AbortSignal.timeout(30_000),
     });

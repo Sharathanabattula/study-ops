@@ -14,6 +14,12 @@ import { initWorkspace, printWelcome } from '../src/commands/init.js';
 import { evaluateUniversity } from '../src/agents/1_university_evaluator.js';
 import { tailorPersonalStatement } from '../src/agents/2_sop_tailor.js';
 import { auditFunds, parseDate } from '../src/agents/3_ukvi_compliance_engine.js';
+import { auditProfile } from '../src/agents/4_profile_auditor.js';
+import { buildShortlist } from '../src/agents/5_shortlist_matrix.js';
+import { budgetFit, costOfAttendance, estimateRoi } from '../src/agents/6_cost_roi_mapper.js';
+import { matchSyllabus } from '../src/agents/7_syllabus_matcher.js';
+import { getProgramme, totalTuition, yearOneTuition } from '../src/lib/programme.js';
+import { loadProfile } from '../src/lib/profile.js';
 import { explainError, model } from '../src/llm/claude.js';
 import { banner, color, fail, gbp, heading, note, panel, row, success, warn } from '../src/ui/theme.js';
 
@@ -74,6 +80,169 @@ program
   .action(run(async ({ force }) => {
     printWelcome(await initWorkspace({ force }));
   }));
+
+/* ─────────────── Phase 1 · Strategic profiling & shortlisting ─────────────── */
+
+program
+  .command('audit-profile')
+  .description('Standardise your grades (UK class, US GPA), audit backlogs and English scores')
+  .action(run(async () => {
+    banner('Profile Auditor');
+    const a = await auditProfile();
+    const g = a.grades;
+
+    heading('Academics');
+    panel('grades', [
+      row('Percentage', g.percentage === null ? color.err('missing') : color.bold(`${g.percentage}%`)),
+      row('Method', color.muted(g.percentageSource)),
+      row('UK equivalent (est.)', g.ukClassLabel ? `${color.bold(g.ukClassLabel)} ${color.muted(`tier ${g.tier}`)}` : '–'),
+      ...(g.marginToNextClass !== null ? [row('To next class', `${g.marginToNextClass} points`)] : []),
+      row('US GPA (reference)', g.usGpa === null ? '–' : `${g.usGpa.toFixed(1)} / 4.0 ${color.muted('WES-style, aggregate')}`),
+      row('Backlogs', `${a.backlogs.active} active · ${a.backlogs.cleared} cleared ${color.muted(`(${a.backlogs.level})`)}`),
+    ], { tint: color.brand });
+
+    heading('English');
+    const e = a.english;
+    panel('test', [
+      row('Test', e.test ?? color.err('missing')),
+      row('Overall', e.overall === null ? '–' : color.bold(String(e.overall))),
+      row('Bands', Object.entries(e.bands).map(([k, v]) => `${k} ${v}`).join(' · ') || '–'),
+      row('UKVI B2 (5.5 each)', e.meetsUkviB2 === null ? '–' : e.meetsUkviB2 ? color.ok('meets') : color.err('below')),
+      row('RG tiers met', e.tiersMet.length ? e.tiersMet.join(', ') : '–'),
+      row('Valid until', e.validUntil ? `${e.validUntil}${e.validAtIntake === false ? color.err('  expires before intake') : ''}` : '–'),
+    ]);
+
+    for (const f of a.flags) (f.level === 'ok' ? success : f.level === 'risk' ? fail : warn)(f.message);
+    console.log();
+    note('Conversions are heuristics (config/grade_equivalence.yaml). A university’s own country table always wins.');
+    console.log();
+  }));
+
+program
+  .command('shortlist')
+  .description('Build a Safe / Target / Reach matrix for a subject across the Russell Group')
+  .requiredOption('-s, --subject <subject>', 'e.g. "Finance", "Data Science"')
+  .option('-l, --level <level>', 'award level', 'MSc')
+  .option('-u, --unis <keys>', 'comma-separated registry keys, e.g. lse,ucl,warwick (default: profile shortlist, else all 24)')
+  .option('--urls <urls>', 'comma-separated programme URLs to classify instead of searching')
+  .option('-m, --max-per-uni <n>', 'programmes per university', positiveNumber, 2)
+  .option('--refresh', 'ignore cached searches and pages')
+  .action(run(async (opts) => {
+    banner('Shortlist Matrix');
+    const split = (s) => s?.split(',').map((x) => x.trim()).filter(Boolean);
+    const { rows, warnings, reportPath } = await buildShortlist({
+      subject: opts.subject, level: opts.level, universities: split(opts.unis), urls: split(opts.urls),
+      maxPerUniversity: opts.maxPerUni, refresh: opts.refresh, onProgress: progress,
+    });
+    console.log();
+    const tint = { safe: color.ok, target: color.warn, reach: color.err };
+    for (const cat of ['safe', 'target', 'reach']) {
+      const list = rows.filter((r) => r.classification.category === cat);
+      if (!list.length) continue;
+      panel(`${cat.toUpperCase()} · ${list.length}`, list.map(({ programme: p, classification: c, cost, budget }) => {
+        const name = `${p.universityKey?.toUpperCase() ?? p.universityName} ${p.requirements.programme_title ?? ''}`.slice(0, 44).padEnd(44);
+        const margin = c.margin == null ? '   ?' : `${c.margin >= 0 ? '+' : ''}${c.margin}`.padStart(5);
+        const money = cost ? gbp(cost.total).padStart(9) : '        –';
+        const fit = budget?.status === 'over' ? color.err('over') : budget?.status === 'stretch' ? color.warn('stretch') : budget?.status === 'within' ? color.ok('within') : color.muted('?');
+        return `${name} ${margin}  ${money}  ${fit}`;
+      }), { tint: tint[cat] });
+    }
+    for (const w of warnings) warn(w);
+    success(`Matrix saved to ${color.bold(path.relative(process.cwd(), reportPath))}`);
+    note('Margin = your % minus the minimum. Cost = all-in cost of attendance.');
+    console.log();
+  }));
+
+program
+  .command('cost')
+  .description('Total cost of attendance (tuition + living + visa + IHS) vs your budget, with ROI')
+  .argument('[url]', 'programme page (reads tuition and duration from it)')
+  .option('-t, --tuition <amount>', 'whole-course tuition in GBP (instead of a URL)', positiveNumber)
+  .option('-d, --duration <months>', 'course length in months', positiveNumber)
+  .option('-z, --zone <inner|outer|outside>', 'where you will live (inner/outer London or outside London)')
+  .option('--course-start <YYYY-MM-DD>', 'course start, for the Graduate Route length', isoDate)
+  .action(run(async (url, opts) => {
+    banner('Cost & ROI Mapper');
+    const profile = await loadProfile();
+    let tuitionTotal = opts.tuition;
+    let tuitionYearOne;
+    let months = opts.duration;
+    let zone = opts.zone;
+    let title = 'Custom';
+    if (url) {
+      progress('Reading programme page');
+      const prog = await getProgramme({ url, nationality: profile.facts.identity?.nationality });
+      tuitionTotal ??= totalTuition(prog.requirements) ?? undefined;
+      tuitionYearOne = yearOneTuition(prog.requirements) ?? undefined;
+      months ??= prog.requirements.duration_months ?? undefined;
+      zone ??= prog.ukviLocation === 'outside-london' ? 'outside' : profile.facts.target?.living_zone;
+      title = `${prog.universityName} · ${prog.requirements.programme_title ?? ''}`;
+      console.log();
+    }
+    if (tuitionTotal == null) throw new Error('Tuition unknown. Pass --tuition <amount>.');
+    months ??= 12;
+
+    const cost = await costOfAttendance({ tuitionTotal, tuitionYearOne, courseMonths: months, zone, flightsAndSetup: profile.facts.budget?.flights_and_setup_gbp ?? 0 });
+    const fit = budgetFit(cost, profile.facts.budget);
+    const intake = profile.facts.target?.intake;
+    const courseStart = opts.courseStart ?? (/^\d{4}-\d{2}$/.test(intake ?? '') ? parseDate(`${intake}-01`) : undefined);
+    const roi = await estimateRoi({ cost, career: profile.facts.career, budget: profile.facts.budget, courseStart });
+    const fx = profile.facts.budget?.fx_gbp_to_home;
+
+    heading(title);
+    panel('cost of attendance', [
+      ...cost.lines.map((l) => row(l.label, gbp(l.amount), 46)),
+      '',
+      row('TOTAL (whole course)', color.bold(gbp(cost.total)), 46),
+      row('Due in year one', gbp(cost.yearOneTotal), 46),
+      ...(typeof fx === 'number' ? [row(`In home currency (× ${fx})`, Math.round(cost.total * fx).toLocaleString('en-IN'), 46)] : []),
+    ], { tint: color.brand });
+
+    const fitText = { within: color.ok('Within budget'), stretch: color.warn('Stretch (≤10% over)'), over: color.err('Over budget'), unknown: color.muted('No budget set') }[fit.status];
+    panel('budget', [
+      row('Status', fitText, 16),
+      ...(fit.limit !== null ? [row('Limit', `${gbp(fit.limit)} ${color.muted(fit.basis)}`, 16), row(fit.headroom >= 0 ? 'Headroom' : 'Shortfall', gbp(Math.abs(fit.headroom)), 16)] : []),
+    ]);
+
+    panel('ROI (pre-tax)', [
+      ...(roi.graduateRouteNote ? [row('Graduate Route', roi.graduateRouteNote, 16)] : []),
+      row('Annual uplift', roi.annualUpliftGbp === null ? '–' : gbp(roi.annualUpliftGbp), 16),
+      row('Salary forgone', roi.forgoneSalaryGbp === null ? '–' : gbp(roi.forgoneSalaryGbp), 16),
+      row('Payback', roi.paybackYears === null ? '–' : `${roi.paybackYears} years`, 16),
+      row('5-year multiple', roi.fiveYearMultiple === null ? '–' : `${roi.fiveYearMultiple}×`, 16),
+    ]);
+    for (const n of roi.notes) note(n);
+    note('Living costs: config/living_costs.yaml (defaults are the UKVI minimum; set your real estimate).');
+    console.log();
+  }));
+
+program
+  .command('match-syllabus')
+  .description('Compare your undergraduate modules with a programme’s prerequisites')
+  .argument('<url>', 'programme page URL')
+  .option('--extra-url <url>', 'separate entry-requirements or module-catalogue page')
+  .option('--modules-file <path>', 'free-text transcript to use instead of academics.modules')
+  .option('--refresh', 're-fetch the programme page')
+  .action(run(async (url, opts) => {
+    banner('Syllabus Matcher');
+    const r = await matchSyllabus({ url, extraUrl: opts.extraUrl, modulesFile: opts.modulesFile, refresh: opts.refresh, onProgress: progress });
+    console.log();
+    const icon = { met: color.ok('✓'), partial: color.warn('◐'), missing: color.err('✕'), unclear: color.muted('?') };
+    const byId = new Map(r.prerequisites.map((p) => [p.id, p]));
+    panel(`${r.programme.universityName} · ${r.programme.requirements.programme_title ?? ''}`, r.matches.map((m) => {
+      const req = (byId.get(m.prerequisite_id)?.requirement ?? m.prerequisite_id).slice(0, 40).padEnd(40);
+      return `${icon[m.status]} ${req} ${color.muted(m.matched_modules.join(', ').slice(0, 40) || '–')}`;
+    }));
+    const tint = { strong: color.ok, adequate: color.ok, weak: color.err }[r.overall] ?? color.warn;
+    success(`Overall fit: ${tint.bold(r.overall.replace('_', ' '))} · ${r.gaps} gap(s)`);
+    note(r.summary);
+    for (const b of r.bridging.slice(0, 3)) warn(`${b.gap}: ${b.action}`);
+    if (r.droppedModules.length) warn(`Ignored modules not in your profile: ${[...new Set(r.droppedModules)].join(', ')}`);
+    success(`Report saved to ${color.bold(path.relative(process.cwd(), r.reportPath))}`);
+    console.log();
+  }));
+
+/* ─────────────── Applications & visa ─────────────── */
 
 program
   .command('evaluate')

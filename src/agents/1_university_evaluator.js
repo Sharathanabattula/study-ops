@@ -8,9 +8,9 @@
  * Pipeline
  *  1. Resolve:  map the URL's domain to the Russell Group registry for city,
  *               UKVI location and tone metadata.
- *  2. Fetch:    download the programme page locally and reduce it to text.
- *  3. Extract:  Claude pulls entry requirements, tuition, duration and
- *               deadlines into a strict schema. Anything not on the page is
+ *  2. Extract:  fetch the page locally; Claude pulls entry requirements,
+ *               tuition, duration and deadlines into a strict schema
+ *               (cached in data/programmes/). Anything not on the page is
  *               null; nothing is guessed.
  *  4. Check:    deterministic comparisons ({@link buildFacts}): IELTS overall
  *               and bands vs minima, tuition vs budget, and year-one cost
@@ -31,10 +31,13 @@ import * as z from 'zod';
 import { HOME, PATHS } from '../lib/paths.js';
 import { loadProfile, missingCoreFields } from '../lib/profile.js';
 import { findUniversityByUrl } from '../lib/universities.js';
-import { fetchPageText } from '../lib/web.js';
+import { RequirementsSchema, getProgramme, yearOneTuition } from '../lib/programme.js';
 import { upsertApplication } from '../lib/tracker.js';
 import { isConfigured, structured } from '../llm/claude.js';
 import { calculateProofOfFunds, loadUkviRules } from './3_ukvi_compliance_engine.js';
+import { auditProfile } from './4_profile_auditor.js';
+
+export { RequirementsSchema };
 
 /**
  * Scoring dimensions and weights (sum = 1.0).
@@ -58,27 +61,6 @@ export const GRADE_BANDS = Object.freeze([
 ]);
 
 /* ────────────────────────────────── schemas ────────────────────────────────── */
-
-/** What Claude extracts from the programme page. Every field may be null. */
-export const RequirementsSchema = z.object({
-  programme_title: z.string().nullable(),
-  award: z.string().nullable().describe('e.g. MSc, MA, MBA'),
-  duration_months: z.number().nullable().describe('Full-time duration in months'),
-  intake: z.string().nullable(),
-  tuition_international_gbp: z.number().nullable().describe('Annual or total overseas tuition in GBP'),
-  tuition_basis: z.enum(['per_year', 'total_course', 'unknown']),
-  application_deadlines: z.array(z.object({ label: z.string(), date: z.string() })),
-  academic_requirement: z.string().nullable().describe('Minimum classification/GPA, verbatim where possible'),
-  international_equivalent: z.string().nullable().describe("Equivalent for the student's country, if the page states one"),
-  ielts_overall: z.number().nullable(),
-  ielts_min_component: z.number().nullable().describe('Lowest band allowed in any single component'),
-  pte_overall: z.number().nullable(),
-  work_experience: z.string().nullable(),
-  tests_required: z.string().nullable().describe('GMAT/GRE requirement, if any'),
-  career_outcomes: z.string().nullable().describe('Placement or employer data stated on the page'),
-  scholarships: z.array(z.string()),
-  notes: z.string().nullable().describe('Anything else that affects eligibility'),
-});
 
 const DimensionKey = z.enum(DIMENSIONS.map((d) => d.key));
 
@@ -177,18 +159,17 @@ export function buildFacts({ facts, requirements: req, location, rules, applicat
     out.push(`English components vs minimum ${req.ielts_min_component}: ${below.length ? `below in ${below.join(', ')}` : 'all meet'}.`);
   }
 
-  const tuition = req.tuition_international_gbp;
   const months = req.duration_months ?? 12;
-  if (tuition != null) {
-    const yearOneTuition = req.tuition_basis === 'total_course' && months > 12 ? (tuition * 12) / months : tuition;
-    const funds = calculateProofOfFunds({ location, courseMonths: months, tuitionFirstYear: yearOneTuition, applicationDate, rules });
-    out.push(`Year-one tuition ≈ £${Math.round(yearOneTuition).toLocaleString('en-GB')} (${req.tuition_basis}).`);
+  const yearOne = yearOneTuition(req);
+  if (yearOne != null) {
+    const funds = calculateProofOfFunds({ location, courseMonths: months, tuitionFirstYear: yearOne, applicationDate, rules });
+    out.push(`Year-one tuition ≈ £${yearOne.toLocaleString('en-GB')} (${req.tuition_basis}).`);
     out.push(`UKVI living costs: £${funds.monthlyRate}/mo × ${funds.monthsCounted} = £${funds.maintenance.toLocaleString('en-GB')} (${location}).`);
     out.push(`UKVI proof of funds ≈ £${funds.total.toLocaleString('en-GB')}.`);
 
     const { max_tuition: maxTuition, max_total_year_one: maxTotal } = facts.budget ?? {};
     if (typeof maxTuition === 'number') {
-      out.push(`Tuition vs budget ceiling £${maxTuition.toLocaleString('en-GB')}: ${yearOneTuition <= maxTuition ? 'within' : `over by £${Math.round(yearOneTuition - maxTuition).toLocaleString('en-GB')}`}.`);
+      out.push(`Tuition vs budget ceiling £${maxTuition.toLocaleString('en-GB')}: ${yearOne <= maxTuition ? 'within' : `over by £${(yearOne - maxTuition).toLocaleString('en-GB')}`}.`);
     }
     if (typeof maxTotal === 'number') {
       out.push(`Tuition + UKVI living costs vs total budget £${maxTotal.toLocaleString('en-GB')}: ${funds.total <= maxTotal ? 'within' : `over by £${(funds.total - maxTotal).toLocaleString('en-GB')}`} (excludes visa fee, IHS and flights).`);
@@ -216,10 +197,11 @@ Principles:
  * @param {string} input.url               Programme page URL.
  * @param {string} [input.profilePath]     Defaults to data/student_profile.md.
  * @param {(stage: string) => void} [input.onProgress]
+ * @param {boolean} [input.refresh]       Re-fetch even if the page is cached.
  * @param {typeof fetch} [input.fetchImpl] Injected for tests.
  * @returns {Promise<EvaluationReport>}
  */
-export async function evaluateUniversity({ url, profilePath, onProgress = () => {}, fetchImpl }) {
+export async function evaluateUniversity({ url, profilePath, onProgress = () => {}, refresh = false, fetchImpl }) {
   let parsed;
   try {
     parsed = new URL(url);
@@ -250,25 +232,22 @@ export async function evaluateUniversity({ url, profilePath, onProgress = () => 
     };
   }
 
-  onProgress('Fetching programme page');
-  const page = await fetchPageText(parsed.href, { fetchImpl });
-
-  onProgress('Extracting entry requirements');
-  const requirements = await structured({
-    system: [SYSTEM],
-    schema: RequirementsSchema,
-    effort: 'medium',
-    prompt: [
-      `Extract the programme details below from this page. Student nationality (for the international equivalent): ${profile.facts.identity?.nationality || 'unknown'}.`,
-      page.truncated ? 'Note: the page was very long and has been cut to its first 200,000 characters.' : '',
-      `<page url="${page.url}" title="${page.title ?? ''}">`,
-      page.text,
-      '</page>',
-    ].filter(Boolean).join('\n\n'),
-  });
+  onProgress('Reading programme page');
+  const programme = await getProgramme({ url: parsed.href, nationality: profile.facts.identity?.nationality, refresh, fetchImpl });
+  const { requirements } = programme;
 
   const location = uni?.ukvi_location ?? (profile.facts.target?.study_location === 'outside-london' ? 'outside-london' : 'london');
-  const facts = buildFacts({ facts: profile.facts, requirements, location, rules: await loadUkviRules() });
+  const audit = await auditProfile({ profile });
+  const facts = [
+    ...(audit.grades.percentage !== null
+      ? [`Student grade: ${audit.grades.percentage}% (${audit.grades.percentageSource}); estimated UK equivalent ${audit.grades.ukClassLabel} at institution tier ${audit.grades.tier}.`]
+      : []),
+    ...(requirements.home_country_min_percentage != null && audit.grades.percentage !== null
+      ? [`Page states a home-country minimum of ${requirements.home_country_min_percentage}% → student is ${audit.grades.percentage >= requirements.home_country_min_percentage ? 'above' : 'below'} it by ${Math.abs(Math.round((audit.grades.percentage - requirements.home_country_min_percentage) * 10) / 10)} points.`]
+      : []),
+    `Backlogs: ${audit.backlogs.active} active, ${audit.backlogs.cleared} cleared.`,
+    ...buildFacts({ facts: profile.facts, requirements, location, rules: await loadUkviRules() }),
+  ];
 
   onProgress('Scoring fit');
   const scoring = await structured({
@@ -328,7 +307,7 @@ export async function evaluateUniversity({ url, profilePath, onProgress = () => 
     url: parsed.href,
     location,
     evaluation: { score, grade: report.grade, report: path.relative(HOME, report.reportPath) },
-    fees: { tuition_year_one: requirements.tuition_international_gbp },
+    fees: { tuition_year_one: yearOneTuition(requirements) },
   });
 
   return report;

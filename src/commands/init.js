@@ -14,6 +14,7 @@ const SCAFFOLD = [
   { template: 'student_profile.md', target: PATHS.profile },
   { template: 'tracker.yaml', target: PATHS.tracker },
   { template: 'personal_statement.md', target: PATHS.personalStatement },
+  { template: 'outcomes.yaml', target: PATHS.outcomes },
 ];
 
 /**
@@ -62,6 +63,10 @@ export function printWelcome({ created, skipped }) {
   heading('Then run');
   const cmd = (text, desc = '') => `${color.accent(text.padEnd(44))}${color.muted(desc)}`;
   panel('commands', [
+    cmd('study-ops audit-profile', 'UK class, US GPA, backlogs, English'),
+    cmd('study-ops shortlist --subject "Finance"', 'Safe / Target / Reach matrix'),
+    cmd('study-ops cost <programme-url>', 'all-in cost vs budget, ROI'),
+    cmd('study-ops match-syllabus <programme-url>', 'your modules vs prerequisites'),
     cmd('study-ops evaluate <programme-url>', 'A–F fit report'),
     cmd('study-ops generate-sop --uni LSE', 'tailored statement'),
     cmd('study-ops audit-funds --location london \\', 'UKVI proof of funds'),

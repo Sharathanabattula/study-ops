@@ -107,6 +107,45 @@ export async function structured({ system, prompt, schema, effort = 'high' }) {
 }
 
 /**
+ * Structured call with Anthropic's server-side web search, limited to the given
+ * domains. Long searches can pause mid-turn (`pause_turn`). The paused turn is
+ * sent back as-is so the server resumes where it stopped.
+ *
+ * @template T
+ * @param {object} input
+ * @param {string[]} input.system
+ * @param {string} input.prompt
+ * @param {import('zod').ZodType<T>} input.schema
+ * @param {string[]} input.allowedDomains
+ * @param {number} [input.maxSearches=5]
+ * @param {'low'|'medium'|'high'|'xhigh'|'max'} [input.effort='medium']
+ * @returns {Promise<T>}
+ */
+export async function structuredWithSearch({ system, prompt, schema, allowedDomains, maxSearches = 5, effort = 'medium' }) {
+  const messages = [{ role: 'user', content: prompt }];
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const response = await getClient().beta.messages.parse({
+      model: model(),
+      max_tokens: 16000,
+      betas: [FALLBACK_BETA],
+      fallbacks: 'default',
+      system: cachedSystem(system),
+      messages,
+      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: maxSearches, allowed_domains: allowedDomains }],
+      output_config: { effort, format: betaZodOutputFormat(schema) },
+    });
+    if (response.stop_reason === 'pause_turn') {
+      messages.push({ role: 'assistant', content: response.content });
+      continue;
+    }
+    assertUsable(response);
+    if (!response.parsed_output) throw new Error('Claude returned output that did not match the expected format.');
+    return response.parsed_output;
+  }
+  throw new Error('Web search did not finish after several resumes. Try again, or pass programme URLs directly with --urls.');
+}
+
+/**
  * One free-text call. Streams under the hood so long drafts never hit HTTP
  * timeouts, and returns the final text.
  *
