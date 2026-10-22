@@ -206,7 +206,7 @@ export function checkBalanceHistory({ balances, required, applicationDate, rules
         compliant: true,
         window: { start: toIsoDate(addDays(end, -(hold - 1))), end: toIsoDate(end) },
         lowestBalance: lowest,
-        reason: `Balance stayed ≥ £${required} for ${hold} consecutive days.`,
+        reason: `Balance stayed ≥ ${required.toLocaleString('en-GB')} for ${hold} consecutive days.`,
       };
     }
   }
@@ -214,7 +214,7 @@ export function checkBalanceHistory({ balances, required, applicationDate, rules
     compliant: false,
     window: null,
     lowestBalance: balances.length ? Math.min(...balances.map((b) => b.balance)) : null,
-    reason: `No ${hold}-day run at or above £${required} ending between ${earliestEnd} and ${latestEnd}.`,
+    reason: `No ${hold}-day run at or above ${Math.round(required).toLocaleString('en-GB')} ending between ${earliestEnd} and ${latestEnd}.`,
   };
 }
 

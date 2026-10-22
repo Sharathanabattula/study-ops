@@ -42,7 +42,7 @@ import { auditFunds } from './3_ukvi_compliance_engine.js';
  * Check your invitation and pass --prep / --answer to match it.
  */
 export const TYPES = Object.freeze({
-  credibility: { label: 'Credibility / pre-CAS interview', prep: 0, answer: 120, technical: false, focus: 'course content and structure, why this university over others, why the UK rather than home, finances and who pays, accommodation, plans after study and ties to home, consistency with the application' },
+  credibility: { label: 'Credibility / pre-CAS interview', prep: 0, answer: 120, technical: false, focus: 'specific modules and how the course is assessed, the campus location and where you will live, why this university over others, why the UK rather than home, exactly who is funding you, from which accounts or loan and how much, accommodation, plans after study and ties to home, consistency with the CAS and visa application (as in university pre-CAS interviews and UKVI calls)' },
   kira: { label: 'Kira Talent-style timed assessment', prep: 45, answer: 90, technical: false, focus: 'behavioural (STAR) questions, motivation, teamwork, failure, ethics, why this programme; one short written response' },
   'technical-finance': { label: 'Technical finance round', prep: 30, answer: 180, technical: true, focus: 'DCF and valuation, WACC, CAPM, bond pricing and duration, accounting links between statements, options basics, probability and mental maths, market awareness' },
   'technical-cs': { label: 'Technical CS round', prep: 30, answer: 240, technical: true, focus: 'complexity analysis, arrays/hash maps/trees/graphs, recursion and DP, SQL, system design basics, ML fundamentals, the student’s own projects' },

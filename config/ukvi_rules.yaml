@@ -64,3 +64,27 @@ graduate_route:
   # Post-study work permission for bachelor's/master's graduates
   - { applications_from: null, months: 24 }
   - { applications_from: "2027-01-01", months: 18 }   # Statement of Changes, 14 Oct 2025
+
+fx:
+  # UKVI converts foreign-currency funds with OANDA's rate on the date you
+  # submit the online application. Hold a buffer against movement.
+  source: "OANDA, on the application date"
+  default_buffer: 0.05
+
+tb_test:
+  required_for: [India]            # Applicants staying > 6 months
+  certificate_valid_months: 6
+  note: "Take it at a Home Office-approved clinic; the certificate must be valid when you apply."
+
+atas:
+  typical_processing_working_days: 30
+  apply_up_to_months_before_course: 6
+  certificate_valid_months: 6
+  note: "Needed for some postgraduate STEM subjects; your CAS says if ATAS applies. Universities usually won't issue the CAS without it."
+
+evisa:
+  note: "BRPs are no longer issued. Student visa holders get an eVisa: create a UKVI account, link your passport, and use 'View and prove' to share your status."
+  police_registration_required: false   # Abolished August 2022
+
+work:
+  term_time_hours_per_week: 20     # Degree-level study

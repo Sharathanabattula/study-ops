@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  STUDY-OPS · VISA FILE (Student visa from India)
+#  🔒 Local only (git-ignored). Never sent to any AI model.
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+
+application_for: ""           # tracker id of the course you're going to (firm choice)
+
+tb_test:
+  clinic: ""                  # Home Office-approved clinic
+  date: ""                    # YYYY-MM-DD; certificate valid 6 months
+  certificate_number: ""
+
+parental_funds:
+  used: false
+  birth_certificate: false
+  consent_letter: false       # Signed letter from parent(s) consenting to use of funds
+
+application:
+  planned_date: ""            # YYYY-MM-DD you'll submit online
+  submitted_on: ""
+  gwf_number: ""              # Reference shown after submission
+  ihs_reference: ""           # IHS number (paid inside the online application)
+  vfs_city: ""                # e.g. Hyderabad, Mumbai, New Delhi
+  biometrics_on: ""
+  decision: ""                # granted | refused
+  decision_on: ""
+
+arrival:
+  flight_date: ""
+  ukvi_account_created: false
+  evisa_checked: false
+  accommodation_confirmed: false

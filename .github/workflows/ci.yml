@@ -30,3 +30,5 @@ jobs:
           node bin/study-ops.js cost --tuition 38000 --duration 12 --zone inner
           node bin/study-ops.js portals
           node bin/study-ops.js form-pack
+          node bin/study-ops.js scholarships --no-internal
+          node bin/study-ops.js arrival --course-start 2027-09-27

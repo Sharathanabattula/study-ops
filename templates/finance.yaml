@@ -1,0 +1,52 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  STUDY-OPS · FINANCE (funding plan, loan docket, proof-of-funds sources)
+#  🔒 Local only (git-ignored). Never sent to any AI model.
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+
+currency_home: INR
+fx_gbp_to_home: null          # Leave null to fetch a live rate (UKVI itself uses OANDA on the application date)
+
+own_funds_gbp: 0              # Savings you and your family will contribute
+scholarships_awarded:         # Confirmed awards only
+  - { name: "", amount_gbp: 0, covers: tuition }   # covers: tuition | living | both
+
+loan:
+  lenders_considered: [credila, sbi, prodigy]   # ids from config/lenders.yaml
+  secured: true               # Offering collateral?
+  amount_requested_gbp: null  # Leave null to compute from the funding gap
+  sanction:
+    lender: ""
+    amount_inr: null
+    sanction_letter_date: ""  # YYYY-MM-DD. UKVI needs it ≤ 6 months old at visa application
+
+co_applicants:
+  - relationship: ""          # Father | Mother | Spouse | Sibling | Guardian
+    employment: salaried      # salaried | self_employed | retired | other
+    annual_income_inr: null
+
+collateral:
+  type: ""                    # residential_property | commercial_property | fd | lic | none
+  estimated_value_inr: null
+
+documents:                    # Tick off as you collect them (ids from config/lenders.yaml)
+  student_passport: false
+  student_pan: false
+  student_aadhaar: false
+  marksheet_10: false
+  marksheet_12: false
+  degree_marksheets: false
+  offer_letter: false
+  cost_of_study: false
+  coapp_pan: false
+  salary_slips: false
+  itr_salaried: false
+  title_deed: false
+
+pof_accounts:                 # Accounts you'll show for UKVI proof of funds
+  - holder: ""                # Your name, or a parent's (needs birth certificate + consent letter)
+    relationship: self        # self | parent | legal_guardian
+    bank: ""
+    type: savings             # savings | current | fixed_deposit | loan
+    currency: INR
+    statement_csv: ""         # e.g. data/statements/sbi.csv (export from net banking)

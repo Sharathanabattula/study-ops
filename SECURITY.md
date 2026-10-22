@@ -12,6 +12,7 @@ Study-Ops handles sensitive personal data: academic records, passport details an
 - `data/browser/<site>/` holds the assisted browser's profile, including your **signed-in portal sessions**. Treat it like a password. It is git-ignored; delete the folder to sign out everywhere.
 - Study-Ops never stores passwords, never submits applications, never pays fees and never answers declarations (criminal record, health, equality monitoring, consent) on your behalf.
 - `outputs/forms/*.md` (from `form-pack`) contains passport data. Delete it when you finish.
+- `data/finance.yaml`, `data/visa.yaml`, bank statement CSVs and `outputs/finance/` hold family financial data. The loan docket, CAS tracker, statement auditor and visa pack are fully deterministic and never call an AI model.
 
 ## Reporting a vulnerability
 

@@ -46,6 +46,23 @@ Inspired by [`santifer/career-ops`](https://github.com/santifer/career-ops). The
 - **⌨️ Form Filler** (`fill`, `portal open`): opens the portal in your own browser window and fills fields from `data/applicant.yaml` (UK date formats, split day/month/year, phone country codes, country lists). **You sign in, review and submit**; it never submits, pays or answers declarations.
 - **🎤 Interview Prep** (`interview`, `interview-practice`): question banks for credibility/pre-CAS, Kira-style timed, technical finance, technical CS and academic panel interviews, plus a timed mock interview that scores typed answers and flags anything that contradicts your application.
 
+**Phase 4: Financial engineering & scholarships**
+
+- **🏅 Scholarship Matcher** (`scholarships`): checks Chevening, GREAT and Commonwealth rules in code (nationality, level, course length, work experience, grades, prior UK master's) and reports each window as open, closed or unannounced. University awards are found on each university's own site, and an award is kept only if its page confirms it.
+- **🏦 Loan Docket** (`loan-docket`): works out the loan you need (cost of attendance − own funds − awards, in GBP and INR) and builds the exact document list for Credila, SBI or Prodigy Finance, adjusted for secured or unsecured loans and salaried or self-employed co-applicants. It also checks a sanction letter against UKVI's loan-letter conditions.
+
+**Phase 5: UKVI visa compliance**
+
+- **🎫 CAS Tracker** (`cas status/set`): every gate from offer to CAS (conditions, firm acceptance, deposit, ATAS, pre-CAS documents, finance check, credibility interview), with the blocking one as your next action and the dates that follow (ATAS ≈ 30 working days, CAS expiry, earliest visa date, TB validity).
+- **💱 Proof of funds in INR** (`audit-funds --fx/--statements`): the exact GBP requirement converted to INR with an exchange-rate buffer (UKVI uses OANDA on the day you apply), then a **28-day audit of your real bank statement CSVs**. Balances are carried forward over days without transactions, accounts are summed, dips are listed day by day, and large credits inside the window are flagged.
+- **🛂 Visa Filing** (`visa checklist/open`): documents with status, £558 fee + IHS for the full visa length (both paid inside the online application, so there's no separate IHS link), date gates, VFS biometrics steps, and the gov.uk application opened in your assisted browser.
+- **🎤 Credibility prep**: `interview --type credibility` now drills modules, campus location, exactly who funds you, and consistency with your CAS.
+
+**Phase 6: Post-arrival landing**
+
+- **🏠 Accommodation** (`housing`): university halls and PBSA (Unite, iQ, Chapter, Vita, Homes for Students, Student Roost, Scape, CRM) near your campus. A listing is kept only if its own page confirms it, and a price only if the page states it. Each is priced against your living budget, with deposit-protection, guarantor and Right to Rent notes.
+- **🛬 Arrival** (`arrival`): a dated checklist for the current rules. **BRPs are no longer issued** (your status is an eVisa in your UKVI account) and **police registration was abolished in August 2022**. What's left: enrolment and right-to-study check, GP, bank, council tax exemption, work-hour limits.
+
 **Evaluation & visa**
 
 - **🏛️ University Evaluator**: grades any Russell Group programme A–F (1.0–5.0) on admission probability, budget fit, ROI, programme fit and career outcomes.
@@ -97,6 +114,13 @@ Fill in `data/student_profile.md`, then:
 | `study-ops fill <url> [--overwrite]` · `form-pack` | 12 · Form Filler (assisted browser) / copy-paste sheet | ✅ Ready (Playwright; labels-only AI mapping) |
 | `study-ops interview --uni --course --type <credibility\|kira\|technical-finance\|technical-cs\|academic\|general>` | 14 · Interview question bank → `outputs/interview/` | ✅ Ready (needs API key) |
 | `study-ops interview-practice --uni --type [--count] [--prep] [--answer]` | 14 · Timed mock interview with feedback | ✅ Ready (needs API key) |
+| `study-ops scholarships [--unis …] [--no-internal]` | 15 · Scholarship Matcher → `reports/scholarships.md` | ✅ Ready (university search needs API key) |
+| `study-ops loan-docket --lender <credila\|sbi\|prodigy> [--app id \| --tuition]` | 16 · Funding plan + docket → `outputs/finance/` | ✅ Ready (offline) |
+| `study-ops cas status <id>` · `cas set <id> …` | 17 · CAS gates and dates | ✅ Ready (offline) |
+| `study-ops audit-funds … --fx <rate> --statements a.csv,b.csv` | 3 + 18 · PoF in INR + 28-day statement audit | ✅ Ready (offline) |
+| `study-ops visa checklist [id]` · `visa open` | 19 · Visa filing pack → `outputs/visa/checklist.md` | ✅ Ready (open needs Playwright) |
+| `study-ops housing --uni <name> [--campus] [--max-weekly]` | 20 · Verified accommodation → `outputs/arrival/` | ✅ Ready (needs API key) |
+| `study-ops arrival [--course-start]` | 20 · Dated arrival checklist | ✅ Ready (offline) |
 | `study-ops audit-funds --location <london\|outside> --duration <months> --tuition <gbp>` | 3 · UKVI Compliance Engine | ✅ Ready (deterministic) |
 
 Without an API key, `evaluate`, `generate-sop` and `tailor-sop` still run in scaffold mode. The SOP commands then save a ready-to-paste prompt for any model.
@@ -157,6 +181,26 @@ Install the browser once: `npm install playwright && npx playwright install chro
 
 **Interviews.** `interview` writes likely questions with answer outlines built from your files, plus worked answers for technical rounds. Timings are typical defaults (Kira-style: 45s to prepare, 90s to answer). Every school configures its own, so match your invitation with `--prep` / `--answer`. In credibility interviews, consistency with your application matters most, so practice feedback flags any claim or figure that isn't in your files.
 
+### Money and visa: what's checked, and how fresh it is
+
+| Topic | Source of truth | Last checked |
+|---|---|---|
+| Scholarship rules and windows | `config/scholarships.yaml` | 22 Oct 2026. Chevening 2027-28 closed 6 Oct 2026; GREAT 2026-27 closed; Commonwealth (India) closes mid-Oct via the Ministry of Education |
+| Lender documents | `config/lenders.yaml` | Typical lists; confirm with your loan officer |
+| Visa fee £558, IHS £776/yr, TB test, ATAS, eVisa | `config/ukvi_rules.yaml` | 22 Oct 2026 |
+| Exchange rate | `--fx`, else the live ECB reference rate | UKVI uses OANDA on your application date, so keep the buffer |
+
+**The 28-day audit runs on your real statements.** Export CSVs from net banking (SBI, HDFC, ICICI and Axis formats are recognised by column name) and run:
+
+```bash
+study-ops audit-funds -l london -d 12 -t 38000 --deposit 5000 --apply-date 2027-07-01 \
+  --fx 112 --statements data/statements/sbi.csv,data/statements/hdfc-fd.csv
+```
+
+A CSV row whose amounts contain unquoted commas stops the audit with an error rather than being guessed. In a funds check, a wrong number is worse than no number.
+
+**Not immigration advice.** Study-Ops is a self-service tool. For advice on your case, use your university's international student advisers or an adviser regulated by the Immigration Advice Authority (IAA).
+
 ### Connecting Claude
 
 The two writing and judgement agents use [Anthropic's Claude](https://platform.claude.com) through the official `@anthropic-ai/sdk`.
@@ -172,7 +216,7 @@ How the integration behaves:
 - **Prompt caching.** Your profile and master statement are cached across the SOP draft → critique → revise calls.
 - **Server-side fallbacks** are on (`fallbacks: "default"`). If a request is declined, the API retries it on Anthropic's recommended fallback model. A request declined by every model shows a clear error.
 
-Rough cost on Opus 5.5 ($4 / $20 per million tokens), depending on page length: **about $0.05–0.25 per evaluation**, **$0.10–0.25 per syllabus match**, **$0.20–0.50 for the master SOP**, **$0.30–0.80 per tailored SOP with `--find-faculty`**, **$0.20–0.50 for a set of 3 LORs**, **$0.05–0.15 per CV**, **$0.05–0.20 per interview bank** and **about $0.02–0.05 per practice answer**, **under $0.01 to map a new form** (cached after the first time), and **roughly $5–12 for a full 24-university shortlist** at 2 programmes each. That last figure includes web search at $10 per 1,000 searches. These are estimates, not measurements. Page extractions are cached for 30 days, so re-runs cost much less. Use `--unis` to keep a shortlist small.
+Rough cost on Opus 5.5 ($4 / $20 per million tokens), depending on page length: **about $0.05–0.25 per evaluation**, **$0.10–0.25 per syllabus match**, **$0.20–0.50 for the master SOP**, **$0.30–0.80 per tailored SOP with `--find-faculty`**, **$0.20–0.50 for a set of 3 LORs**, **$0.05–0.15 per CV**, **$0.05–0.20 per interview bank** and **about $0.02–0.05 per practice answer**, **under $0.01 to map a new form** (cached after the first time), **$0.10–0.40 per university awards search** and **$0.15–0.50 per accommodation search** (web search included), and **roughly $5–12 for a full 24-university shortlist** at 2 programmes each. That last figure includes web search at $10 per 1,000 searches. These are estimates, not measurements. Page extractions are cached for 30 days, so re-runs cost much less. Use `--unis` to keep a shortlist small.
 
 ### `audit-funds` in detail
 
@@ -208,6 +252,12 @@ src/agents/
   12_form_filler.js              DOM field extraction → labels-only mapping → local fill
   13_portal_manager.js           portal dashboard, next actions, assisted sessions
   14_interview_prep.js           question banks + timed practice with feedback
+  15_scholarship_matcher.js      external scheme rules + verified university awards
+  16_loan_docket.js              funding gap, lender dockets, UKVI loan-letter checks (pure)
+  17_cas_tracker.js              offer → CAS gates and dates (pure)
+  18_statement_auditor.js        bank CSV parsing, carry-forward balances, 28-day audit (pure)
+  19_visa_filing.js              visa documents, fees, date gates, assisted gov.uk session
+  20_arrival_planner.js          verified accommodation + dated arrival checklist
 src/llm/claude.js                the only module that calls an LLM (model, caching, fallbacks, errors)
 src/lib/programme.js             shared, cached programme-page extraction (data/programmes/)
 src/lib/specifics.js             modules, faculty and labs, verified on official pages
@@ -221,6 +271,8 @@ config/uk_universities.yaml      24 Russell Group members: domains, UKVI locatio
 config/grade_equivalence.yaml    CGPA formulas, UK class bands by tier, US GPA, English tiers
 config/living_costs.yaml         monthly living costs: inner / outer / outside London
 config/portals.yaml              application routes; UCAS cycle deadlines
+config/scholarships.yaml         Chevening / GREAT / Commonwealth rules and dated windows
+config/lenders.yaml              Credila / SBI / Prodigy document dockets
 templates/                       pristine copies used by `init` (incl. elite_sop_framework.md)
 data/                            YOUR state (git-ignored)
 reports/, outputs/                agent output (git-ignored)
@@ -233,6 +285,8 @@ reports/, outputs/                agent output (git-ignored)
 - `data/recommenders.yaml`: 2–3 recommenders, each with the evidence they personally observed.
 - `data/resume.md`: your current resume, pasted as text.
 - `data/applicant.yaml`: 🔒 passport, contact, education, employment, referees, immigration history. Local code only.
+- `data/finance.yaml`: 🔒 own funds, awards, co-applicants, collateral, loan sanction, documents collected, proof-of-funds accounts.
+- `data/visa.yaml`: 🔒 TB test, parental funds, application references (GWF, IHS), VFS appointment, arrival status.
 - `data/browser/`, `data/forms/`: assisted-browser profiles (signed-in sessions) and cached form mappings.
 - `data/sop_interview.md`: questions from `master-sop`, answered by you.
 - `data/outcomes.yaml`: past admission results (anonymous) that turn the matrix into a data-driven one.
@@ -251,6 +305,7 @@ STUDY_OPS_DEBUG=1   # print stack traces
 
 - ~~**0.2** Claude provider, evaluator extraction and scoring, SOP generate → critique → revise.~~ ✅
 - ~~**0.3** Phase 1 intake: profile audit, Safe/Target/Reach matrix, cost & ROI, syllabus matching.~~ ✅
+- ~~**0.7** Phases 4–6: scholarships, loan dockets, CAS gates, INR proof of funds, statement audit, visa filing, accommodation, arrival.~~ ✅
 - ~~**0.6** Phase 3 execution: application auditor, portal manager, assisted form filling, interview prep.~~ ✅
 - ~~**0.5** Elite SOP engine: framework-as-system-prompt, `generate-sop --prof --module --lab`, rule checks in code.~~ ✅
 - ~~**0.4** Phase 2 positioning: master SOP, ≈30% tailoring with verified specifics, distinct LORs, academic CV.~~ ✅

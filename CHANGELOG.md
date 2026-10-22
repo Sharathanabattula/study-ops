@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.0 · 2026-10-22
+
+Phases 4–6: money, visa and landing.
+
+- `scholarships` (agent 15): code-checked eligibility for Chevening, GREAT (India) and Commonwealth Master's (India) with dated windows (checked 22 Oct 2026). University awards come from web search on the university's own domain, kept only when the award page confirms the name and any stated amount.
+- `loan-docket` (agent 16): funding gap in GBP/INR; Credila, SBI and Prodigy dockets by loan type and co-applicant employment; tick-off from `data/finance.yaml`; UKVI loan-letter checks; correct Section 80E note (old tax regime only). Fully offline.
+- `cas status/set` (agent 17): offer → firm → deposit → ATAS → pre-CAS docs → finance check → credibility interview → CAS, with working-day ATAS estimate, CAS expiry, earliest visa date and TB validity.
+- `audit-funds --fx/--buffer/--statements` (agent 18): INR proof of funds with a buffer for OANDA movement; bank CSV parser (header detection, Indian date and amount formats, newest-first files, rejects malformed rows); carry-forward daily balances; multi-account sums; dips, large credits and stale statements flagged.
+- `visa checklist/open` (agent 19): documents with status (TB, ATAS, parental consent, loan letter), £558 fee + IHS for the full visa length, date gates, steps through VFS biometrics to eVisa; assisted gov.uk session.
+- `housing` and `arrival` (agent 20): verified halls/PBSA with stated prices against the living budget and tenancy safeguards; dated arrival checklist reflecting eVisas (no BRPs) and the removal of police registration.
+- Credibility interview focus covers modules, campus location and funding sources.
+- New config: `scholarships.yaml`, `lenders.yaml`; `ukvi_rules.yaml` adds FX, TB, ATAS, eVisa and work-hour rules. New templates: `finance.yaml`, `visa.yaml`; tracker gains offer/pre-CAS/ATAS fields.
+
 ## 0.6.0 · 2026-10-22
 
 Phase 3: application execution.

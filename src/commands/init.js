@@ -20,6 +20,8 @@ const SCAFFOLD = [
   { template: 'master_sop_raw.md', target: PATHS.masterRaw },
   { template: 'elite_sop_framework.md', target: PATHS.eliteFramework },
   { template: 'applicant.yaml', target: PATHS.applicant },
+  { template: 'finance.yaml', target: PATHS.finance },
+  { template: 'visa.yaml', target: PATHS.visa },
 ];
 
 /**
@@ -83,8 +85,14 @@ export function printWelcome({ created, skipped }) {
     cmd('study-ops portals', 'every portal, deadline and next action'),
     cmd('study-ops portal open <id> [--register]', 'your browser; Study-Ops fills, you submit'),
     cmd('study-ops interview --type credibility …', 'question bank + interview-practice'),
-    cmd('study-ops audit-funds --location london \\', 'UKVI proof of funds'),
-    cmd('    --duration 12 --tuition 38000'),
+    cmd('study-ops scholarships', 'Chevening, GREAT, Commonwealth + uni awards'),
+    cmd('study-ops loan-docket --lender credila', 'funding gap + lender document list'),
+    cmd('study-ops cas status <id>', 'every gate to your CAS'),
+    cmd('study-ops visa checklist', 'documents, fee + IHS, dates, steps'),
+    cmd('study-ops housing --uni <name>', 'verified halls & PBSA near campus'),
+    cmd('study-ops arrival', 'eVisa, enrolment, GP, bank'),
+    cmd('study-ops audit-funds -l london -d 12 -t 38000 \\', 'proof of funds, INR, 28-day'),
+    cmd('    --fx 112 --statements sbi.csv'),
   ]);
 
   note('Privacy: data/, reports/ and outputs/ are git-ignored and never leave this machine.');

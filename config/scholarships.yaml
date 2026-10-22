@@ -1,0 +1,65 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  EXTERNAL SCHOLARSHIPS (UK, for Indian applicants)
+#  Consumed by src/agents/15_scholarship_matcher.js
+#
+#  Rules are machine-checked; windows are dated. Everything here was checked
+#  against public sources on `last_checked`. Schemes change every cycle, so
+#  confirm on the official URL before relying on any rule or date.
+#  University-specific bursaries are found live by `study-ops scholarships`.
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+last_checked: "2026-10-22"
+
+schemes:
+  - id: chevening
+    name: "Chevening Scholarships"
+    provider: "UK Foreign, Commonwealth & Development Office"
+    url: "https://www.chevening.org/scholarships/"
+    covers: "Full tuition, monthly living allowance, return flights and allowances for a one-year UK master's"
+    rules:
+      nationalities: [India]          # Chevening-eligible countries include India
+      levels: [MSc, MA, MRes, LLM, MBA, MPhil, "Master's"]
+      max_course_months: 12
+      min_work_months: 24             # ≈ 2,800 hours; may be split across roles
+      return_home_years: 2
+      courses_to_apply: 3             # three eligible courses; one unconditional offer needed
+    cycles:
+      "2027-28":
+        opens: "2026-08-04"
+        closes: "2026-10-06T11:00:00Z"
+        offer_deadline: "2027-07-08"
+    next_cycle_note: "Applications usually open in early August and close in early October."
+
+  - id: great-india
+    name: "GREAT Scholarships (India)"
+    provider: "British Council with UK universities"
+    url: "https://study-uk.britishcouncil.org/scholarships-funding/great-scholarships/india"
+    covers: "At least £10,000 towards tuition for a one-year taught postgraduate course (some universities give more)"
+    rules:
+      nationalities: [India]
+      levels: [MSc, MA, MRes, LLM, MBA, "Master's"]
+      max_course_months: 12
+      requires_participating_university: true
+    cycles:
+      "2026-27":
+        closes: "2026-05-31"          # latest university deadline reported; each university sets its own
+    next_cycle_note: "The 2027-28 list of participating universities and subjects is usually published from about December. You apply to the university, not the British Council."
+
+  - id: commonwealth-masters-india
+    name: "Commonwealth Master's Scholarships (India)"
+    provider: "Commonwealth Scholarship Commission in the UK, nominated by India's Ministry of Education"
+    url: "https://cscuk.fcdo.gov.uk/scholarships/commonwealth-masters-scholarships/"
+    covers: "Tuition, stipend, airfare and allowances for a one-year master's"
+    rules:
+      nationalities: [India]
+      levels: [MSc, MA, MRes, LLM, "Master's"]
+      excluded_levels: [MBA]
+      max_course_months: 12
+      min_uk_class: upper_second
+      min_percentage_india: 60        # reported equivalence; confirm in the Ministry notice
+      no_previous_uk_masters: true
+      nominated_by: "Ministry of Education, Government of India (two-step: national nomination, then CSC)"
+    cycles:
+      "2027-28":
+        closes: "2026-10-20T15:00:00Z"   # sources disagree (15–20 Oct 2026); check the Ministry notice
+    next_cycle_note: "The Ministry of Education notice usually appears mid-year with an earlier national deadline."

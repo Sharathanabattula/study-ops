@@ -14,7 +14,7 @@ import { Command, InvalidArgumentError } from 'commander';
 import { initWorkspace, printWelcome } from '../src/commands/init.js';
 import { evaluateUniversity } from '../src/agents/1_university_evaluator.js';
 import { generateTailoredSOP, tailorPersonalStatement } from '../src/agents/2_sop_tailor.js';
-import { auditFunds, parseDate } from '../src/agents/3_ukvi_compliance_engine.js';
+import { auditFunds, loadUkviRules, parseDate } from '../src/agents/3_ukvi_compliance_engine.js';
 import { auditProfile } from '../src/agents/4_profile_auditor.js';
 import { buildShortlist } from '../src/agents/5_shortlist_matrix.js';
 import { budgetFit, costOfAttendance, estimateRoi } from '../src/agents/6_cost_roi_mapper.js';
@@ -26,6 +26,15 @@ import { checkApplication } from '../src/agents/11_application_auditor.js';
 import { assistedFillSession, formPack } from '../src/agents/12_form_filler.js';
 import { portalDashboard, portalOpen, portalSet } from '../src/agents/13_portal_manager.js';
 import { TYPES as INTERVIEW_TYPES, generateInterviewBank, practiceSession } from '../src/agents/14_interview_prep.js';
+import { matchScholarships } from '../src/agents/15_scholarship_matcher.js';
+import { buildLoanDocket } from '../src/agents/16_loan_docket.js';
+import { casReport, casSet } from '../src/agents/17_cas_tracker.js';
+import { auditStatements } from '../src/agents/18_statement_auditor.js';
+import { visaChecklist, visaOpen } from '../src/agents/19_visa_filing.js';
+import { findAccommodation, writeArrivalChecklist } from '../src/agents/20_arrival_planner.js';
+import { formatHome, getRate, toHome } from '../src/lib/fx.js';
+import { readYaml } from '../src/lib/files.js';
+import { PATHS } from '../src/lib/paths.js';
 import { getProgramme, totalTuition, yearOneTuition } from '../src/lib/programme.js';
 import { loadProfile } from '../src/lib/profile.js';
 import { explainError, model } from '../src/llm/claude.js';
@@ -618,6 +627,11 @@ program
   .option('--apply-date <YYYY-MM-DD>', 'planned visa application date (default: today)', isoDate)
   .option('--course-start <YYYY-MM-DD>', 'course start date (checks the 6-month apply window)', isoDate)
   .option('--cas-issued <YYYY-MM-DD>', 'CAS issue date (checks 6-month CAS validity)', isoDate)
+  .option('--fx <rate>', 'GBP→INR rate to use (default: live ECB reference rate)', positiveNumber)
+  .option('--no-inr', 'skip the INR conversion')
+  .option('--buffer <share>', 'extra margin for exchange-rate moves, e.g. 0.05 = 5%', Number)
+  .option('--statements <files>', 'comma-separated bank statement CSVs to audit against the 28-day rule')
+  .option('--statement-currency <code>', 'currency of the statements', 'INR')
   .action(run(async (opts) => {
     banner('UKVI Compliance Engine');
     const audit = await auditFunds({
@@ -660,10 +674,231 @@ program
       color.muted('Balance must never dip below the total on any of the 28 days.'),
     ]);
 
+    // ── INR conversion (UKVI converts with OANDA on the application date) ──
+    let rate = null;
+    if (opts.inr !== false) {
+      try {
+        rate = await getRate({ override: opts.fx });
+        const rules = await loadUkviRules();
+        const buffer = opts.buffer ?? rules.fx.default_buffer;
+        heading('In Indian rupees');
+        panel('proof of funds (INR)', [
+          row('Exchange rate', `£1 = ₹${rate.rate} ${color.muted(`${rate.source}, ${rate.date}`)}`),
+          row('Exact requirement', formatHome(toHome(funds.total, rate.rate, 0, 1))),
+          row(`With ${Math.round(buffer * 100)}% FX buffer`, color.ok.bold(formatHome(toHome(funds.total, rate.rate, buffer)))),
+          '',
+          color.muted('UKVI converts with OANDA’s rate on the day you submit, so hold the buffered amount.'),
+        ], { tint: color.brand });
+      } catch (err) {
+        warn(err.message);
+      }
+    }
+
+    // ── 28-day audit on real statements ──
+    if (opts.statements) {
+      const inGbp = opts.statementCurrency.toUpperCase() === 'GBP';
+      if (!inGbp && !rate) throw new Error('Statements are in INR but no exchange rate is available. Pass --fx.');
+      const required = inGbp ? funds.total : funds.total * rate.rate;
+      const res = await auditStatements({ files: opts.statements.split(',').map((f) => f.trim()), required, applicationDate: opts.applyDate ?? new Date() });
+      heading('28-day statement audit');
+      const fmt = (n) => `${n < 0 ? '−' : ''}${inGbp ? gbp(Math.abs(n)) : formatHome(Math.abs(n))}`;
+      panel(res.compliant ? 'PASS' : 'FAIL', [
+        row('Required (exact)', fmt(required)),
+        row('Coverage', `${res.coverage.from} → ${res.coverage.to} (${res.coverage.days} days)`),
+        row('Result', res.compliant ? color.ok(`${res.window.start} → ${res.window.end}`) : color.err(res.reason)),
+        row('Lowest balance', res.lowestBalance === null ? '–' : `${fmt(res.lowestBalance)} ${res.headroom >= 0 ? color.ok(`(+${fmt(res.headroom)} spare)`) : color.err(`(${fmt(res.headroom)} short)`)}`),
+        row('Days below', res.dips.length ? color.err(`${res.dips.length}: ${res.dips.slice(0, 3).map((d) => d.date).join(', ')}${res.dips.length > 3 ? '…' : ''}`) : color.ok('none')),
+      ], { tint: res.compliant ? color.ok : color.err });
+      for (const n of res.notes) warn(n);
+    }
+
     for (const w of audit.warnings) warn(w);
     console.log();
     note(`Rules: config/ukvi_rules.yaml · verify at ${audit.source}`);
     note('Decision support only, not immigration advice.');
+    console.log();
+  }));
+
+
+/* ─────────────── Phase 4 · Financial engineering & scholarships ─────────────── */
+
+program
+  .command('scholarships')
+  .description('Match external schemes (Chevening, GREAT, Commonwealth) and verified university awards')
+  .option('-u, --unis <keys>', 'registry keys to search for university awards (default: tracked applications)')
+  .option('--no-internal', 'external schemes only (no web search)')
+  .option('--months <n>', 'course length in months', positiveNumber)
+  .option('--refresh', 'ignore cached university searches')
+  .action(run(async (o) => {
+    banner('Scholarship Matcher');
+    const r = await matchScholarships({ universities: o.unis?.split(',').map((s) => s.trim()), internal: o.internal, courseMonths: o.months, refresh: o.refresh, onProgress: progress });
+    console.log();
+    const tint = { eligible: color.ok, check: color.warn, ineligible: color.err };
+    for (const m of r.external) {
+      const w = m.window;
+      const when = w.status === 'open' ? color.ok(`open · closes ${w.closes}${w.daysLeft != null ? ` (${w.daysLeft} days)` : ''}`) : w.status === 'closed' ? color.err(`closed for ${w.cycle}`) : color.muted(`${w.cycle ?? ''} not announced`);
+      panel(`${m.name} · ${m.eligibility.toUpperCase()}`, [
+        row('Window', when, 10),
+        ...m.rules.filter((x) => x.status !== 'pass').slice(0, 4).map((x) => row(x.status === 'fail' ? '✕' : '?', `${x.rule}: ${x.detail}`.slice(0, 80), 10)),
+        ...(w.note ? [color.muted(w.note.slice(0, 90))] : []),
+      ], { tint: tint[m.eligibility] });
+    }
+    for (const u of r.internal) success(`${u.university}: ${u.awards.length} verified award(s)${u.dropped?.length ? color.muted(` · ${u.dropped.length} unconfirmed dropped`) : ''}`);
+    for (const w of r.warnings) warn(w);
+    success(`Report saved to ${color.bold(path.relative(process.cwd(), r.reportPath))}`);
+    console.log();
+  }));
+
+program
+  .command('loan-docket')
+  .description('Funding plan + the exact document docket for Credila, SBI or Prodigy Finance')
+  .requiredOption('-l, --lender <id>', 'credila | sbi | prodigy')
+  .option('--app <id>', 'tracker application (uses its tuition)')
+  .option('-t, --tuition <amount>', 'whole-course tuition in GBP', positiveNumber)
+  .option('-d, --duration <months>', 'course length in months', positiveNumber, 12)
+  .option('-z, --zone <inner|outer|outside>', 'where you will live')
+  .option('--fx <rate>', 'GBP→INR rate (default: data/finance.yaml, else live)', positiveNumber)
+  .action(run(async (o) => {
+    banner('Loan Docket');
+    let tuition = o.tuition;
+    if (tuition == null && o.app) {
+      const tracker = await readYaml(PATHS.tracker);
+      tuition = tracker.applications?.find((a) => a.id === o.app)?.fees?.tuition_year_one ?? undefined;
+      if (tuition == null) throw new Error(`No tuition recorded for ${o.app}. Pass --tuition.`);
+    }
+    const r = await buildLoanDocket({ lender: o.lender, tuitionTotal: tuition, courseMonths: o.duration, zone: o.zone, fx: o.fx });
+    console.log();
+    panel(r.lender.name, [
+      row('Cost of attendance', `${gbp(r.plan.costTotal)}  ${color.muted(formatHome(toHome(r.plan.costTotal, r.rate.rate, 0, 1)))}`, 20),
+      row('Own funds + awards', `− ${gbp(r.plan.own + r.plan.scholarships)}`, 20),
+      row('Loan needed', color.bold(`${gbp(r.plan.gap)}  ${formatHome(toHome(r.plan.gap, r.rate.rate, 0, 1))}`), 20),
+      row('Documents ready', `${r.docket.total - r.docket.missing.length}/${r.docket.total}`, 20),
+    ], { tint: color.brand });
+    if (r.docket.missing.length) warn(`Still to collect: ${r.docket.missing.slice(0, 6).map((d) => d.label.split(' (')[0]).join(' · ')}${r.docket.missing.length > 6 ? '…' : ''}`);
+    for (const c of r.letter.filter((x) => x.ok === false)) fail(c.message);
+    success(`Docket saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
+    note('Typical list; confirm the final checklist with your loan officer.');
+    console.log();
+  }));
+
+/* ─────────────── Phase 5 · UKVI visa compliance ─────────────── */
+
+const casCmd = program.command('cas').description('CAS tracking: every gate between your offer and your CAS');
+
+casCmd
+  .command('status')
+  .description('Show CAS gates, dates and the next action for an application')
+  .argument('<id>', 'application id from data/tracker.yaml')
+  .action(run(async (id) => {
+    banner('CAS Tracker');
+    printCas(await casReport(id));
+  }));
+
+casCmd
+  .command('set')
+  .description('Record CAS progress for an application')
+  .argument('<id>', 'application id')
+  .option('--offer-type <type>', 'conditional | unconditional')
+  .option('--condition <text>', 'add an offer condition')
+  .option('--condition-met <text>', 'mark a condition as met')
+  .option('--firm <YYYY-MM-DD>', 'date you firmly accepted')
+  .option('--deposit-amount <gbp>', 'deposit required', positiveNumber)
+  .option('--deposit-paid <gbp>', 'deposit paid so far', positiveNumber)
+  .option('--atas-required <yes|no>', 'whether the course needs ATAS')
+  .option('--atas-applied <YYYY-MM-DD>')
+  .option('--atas-issued <YYYY-MM-DD>')
+  .option('--pre-cas-docs', 'pre-CAS documents uploaded')
+  .option('--finance-check', 'university finance check passed')
+  .option('--interview <YYYY-MM-DD>', 'credibility interview date')
+  .option('--interview-passed', 'credibility interview passed')
+  .option('--cas-requested <YYYY-MM-DD>')
+  .option('--cas-issued <YYYY-MM-DD>')
+  .option('--cas-number <ref>')
+  .option('--course-start <YYYY-MM-DD>')
+  .option('--course-end <YYYY-MM-DD>')
+  .action(run(async (id, o) => {
+    banner('CAS Tracker');
+    printCas(await casSet(id, o));
+  }));
+
+function printCas(r) {
+  const icon = { done: color.ok('✓'), pending: color.warn('◐'), todo: color.err('✕'), check: color.muted('?'), 'n/a': color.muted('–') };
+  panel(`${r.app.short_name ?? r.app.university ?? r.app.id} · ${r.app.programme ?? ''}`.slice(0, 70), r.gates.map((g) => `${icon[g.status]} ${g.label.padEnd(26)} ${color.muted(g.detail.slice(0, 60))}`), { tint: color.brand });
+  const d = r.dates;
+  if (Object.keys(d).length) {
+    panel('dates', [
+      ...(d.atasExpected ? [row('ATAS expected ≈', d.atasExpected, 24)] : []),
+      ...(d.casExpires ? [row('CAS expires', d.casExpires, 24)] : []),
+      ...(d.earliestVisaApplication ? [row('Earliest visa application', d.earliestVisaApplication, 24)] : []),
+      ...(d.tbValidUntil ? [row('TB certificate valid until', d.tbValidUntil, 24)] : []),
+    ]);
+  }
+  for (const w of r.warnings) warn(w);
+  success(`Next: ${color.bold(r.next)}`);
+  console.log();
+}
+
+const visaCmd = program.command('visa').description('Student visa filing: checklist, fees, dates, assisted application');
+
+visaCmd
+  .command('checklist')
+  .description('Documents, fees (incl. IHS), dates and steps for your visa application')
+  .argument('[id]', 'application id (default: application_for in data/visa.yaml)')
+  .action(run(async (id) => {
+    banner('Visa Filing');
+    const r = await visaChecklist({ id });
+    const tick = (ok) => (ok === true ? color.ok('✓') : ok === false ? color.err('✕') : color.muted('?'));
+    panel('fees', [
+      row('Application fee', gbp(r.fees.application), 30),
+      row(`Health surcharge (${r.fees.visaMonths}-mo visa)`, gbp(r.fees.ihs), 30),
+      row('Total, paid in the application', color.bold(gbp(r.fees.total)), 30),
+    ], { tint: color.brand });
+    panel('documents', r.docs.map((d) => `${tick(d.ok)} ${d.item.slice(0, 84)}`));
+    if (r.timeline.length) panel('dates', r.timeline.map((t) => `${tick(t.ok)} ${t.label.slice(0, 60).padEnd(60)} ${t.date}`));
+    for (const b of r.blocking) fail(b);
+    success(`Filing pack saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
+    note('Not immigration advice. Ask your university’s advisers or an IAA-regulated adviser about your case.');
+    console.log();
+  }));
+
+visaCmd
+  .command('open')
+  .description('Open the official gov.uk application in your browser; Study-Ops fills, you answer and submit')
+  .action(run(async () => {
+    banner('Assisted Visa Application');
+    note('Immigration history and declarations are always left for you to answer.');
+    await visaOpen({ onReport: printFillReport });
+    console.log();
+  }));
+
+/* ─────────────── Phase 6 · Post-arrival landing ─────────────── */
+
+program
+  .command('housing')
+  .description('Find verified university halls and PBSA near your campus, priced against your budget')
+  .requiredOption('-u, --uni <name>', 'university')
+  .option('--campus <name>', 'campus, e.g. "Mile End", "South Kensington"')
+  .option('--max-weekly <gbp>', 'weekly rent ceiling', positiveNumber)
+  .action(run(async (o) => {
+    banner('Accommodation');
+    const r = await findAccommodation({ university: o.uni, campus: o.campus, maxWeekly: o.maxWeekly, onProgress: progress });
+    console.log();
+    panel(`${r.listings.length} verified options`, r.listings.slice(0, 10).map((l) => `${l.name.slice(0, 34).padEnd(34)} ${(l.weekly_price ?? 'see page').slice(0, 22).padEnd(22)} ${color.muted((l.distance_or_travel ?? '').slice(0, 26))}`), { tint: color.brand });
+    if (r.dropped.length) note(`${r.dropped.length} unconfirmed listing(s) left out.`);
+    success(`Saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
+    console.log();
+  }));
+
+program
+  .command('arrival')
+  .description('Dated landing checklist: eVisa, enrolment, GP, bank, council tax, work rules')
+  .option('--course-start <YYYY-MM-DD>', 'course start date')
+  .action(run(async (o) => {
+    banner('Arrival Planner');
+    const r = await writeArrivalChecklist({ courseStart: o.courseStart });
+    for (const s of r.sections) panel(`${s.phase}${s.when ? ` · by ${s.when}` : ''}`, s.items.map((i) => `☐ ${i.length > 84 ? `${i.slice(0, 83)}…` : i}`));
+    note('No BRP and no police registration any more: your status is an eVisa in your UKVI account.');
+    success(`Saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
     console.log();
   }));
 

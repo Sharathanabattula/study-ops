@@ -53,7 +53,20 @@ applications:
     offer:
       type: null                         # conditional | unconditional
       conditions: []                     # e.g. ["Final transcript", "IELTS 7.0 (6.5)"]
+      conditions_met: []                 # copy each condition here once satisfied
       received_on: null
+      firm_accepted_on: null
+
+    pre_cas:
+      documents_submitted: false         # passport, transcripts, financial evidence uploaded for CAS
+      finance_check_passed: false        # university's own funds check, if it runs one
+      credibility_interview_on: null
+      credibility_interview_passed: false
+
+    atas:
+      required: null                     # true | false; your offer or CAS says
+      applied_on: null
+      issued_on: null
 
     cas:
       requested_on: null

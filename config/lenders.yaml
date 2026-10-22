@@ -1,0 +1,93 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  EDUCATION LOAN DOCKETS (India)
+#  Consumed by src/agents/16_loan_docket.js
+#
+#  Typical document lists compiled from lenders' public checklists. Lenders
+#  change requirements and add case-specific requests, so treat these as a
+#  starting docket and confirm the final list with your loan officer.
+#  Each document id can be ticked off in data/finance.yaml.
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+last_checked: "2026-10-22"
+
+common:
+  student_kyc:
+    - { id: student_passport, label: "Passport (photo and address pages)" }
+    - { id: student_pan, label: "PAN card" }
+    - { id: student_aadhaar, label: "Aadhaar card" }
+    - { id: student_photos, label: "Recent passport-size photographs" }
+  academic:
+    - { id: marksheet_10, label: "Class 10 marksheet and certificate" }
+    - { id: marksheet_12, label: "Class 12 marksheet and certificate" }
+    - { id: degree_marksheets, label: "All semester marksheets / consolidated transcript" }
+    - { id: degree_certificate, label: "Degree or provisional certificate" }
+    - { id: english_test, label: "IELTS / PTE / TOEFL score report" }
+    - { id: entrance_test, label: "GMAT / GRE score report (if taken)" }
+  admission:
+    - { id: offer_letter, label: "Offer letter (conditional or unconditional)" }
+    - { id: cost_of_study, label: "Cost of study: tuition and living expenses (university fee letter or CAS; Study-Ops generates a summary)" }
+    - { id: fee_deposit_receipt, label: "Deposit or fee payment receipts (if paid)" }
+    - { id: scholarship_letter, label: "Scholarship award letter (if any)" }
+  co_applicant_kyc:
+    - { id: coapp_pan, label: "Co-applicant PAN card" }
+    - { id: coapp_aadhaar, label: "Co-applicant Aadhaar card" }
+    - { id: coapp_address, label: "Co-applicant address proof" }
+    - { id: coapp_photos, label: "Co-applicant photographs" }
+  co_applicant_income_salaried:
+    - { id: salary_slips, label: "Salary slips (last 3–6 months)" }
+    - { id: form16, label: "Form 16 (last 2 years)" }
+    - { id: itr_salaried, label: "Income tax returns (last 2–3 years)" }
+    - { id: bank_statements_salary, label: "Salary account bank statements (last 6 months)" }
+  co_applicant_income_self_employed:
+    - { id: itr_business, label: "Income tax returns with computation of income (last 2–3 years)" }
+    - { id: financials, label: "Audited P&L and balance sheet (last 2–3 years)" }
+    - { id: business_proof, label: "Business registration or GST certificate" }
+    - { id: bank_statements_business, label: "Business and personal bank statements (last 6–12 months)" }
+  collateral:
+    - { id: title_deed, label: "Property title deed / sale deed" }
+    - { id: approved_plan, label: "Approved building plan and property tax receipts" }
+    - { id: encumbrance, label: "Encumbrance certificate (latest)" }
+    - { id: valuation, label: "Valuation report (lender-empanelled valuer)" }
+    - { id: fd_receipts, label: "Fixed deposit receipts / LIC policies (if pledging instead of property)" }
+
+lenders:
+  credila:
+    name: "Credila (formerly HDFC Credila)"
+    type: NBFC
+    url: "https://www.credila.com/"
+    secured_and_unsecured: true
+    needs_co_applicant: true
+    sections: [student_kyc, academic, admission, co_applicant_kyc, co_applicant_income, collateral_if_secured]
+    notes:
+      - "Can often sanction before admission is final; ask about pre-admission sanction."
+      - "Collateral is usually needed above an unsecured limit set case by case."
+
+  sbi:
+    name: "State Bank of India (education loans for study abroad)"
+    type: Public sector bank
+    url: "https://sbi.co.in/web/personal-banking/loans/education-loans"
+    secured_and_unsecured: true
+    needs_co_applicant: true
+    sections: [student_kyc, academic, admission, co_applicant_kyc, co_applicant_income, collateral_if_secured]
+    notes:
+      - "Larger study-abroad loans are typically secured; ask the branch which scheme fits your amount."
+      - "Apply through the branch or the Vidya Lakshmi portal, as the branch advises."
+
+  prodigy:
+    name: "Prodigy Finance"
+    type: International lender
+    url: "https://prodigyfinance.com/"
+    secured_and_unsecured: false
+    needs_co_applicant: false
+    sections: [student_kyc_passport_only, academic, admission]
+    notes:
+      - "No collateral or co-signer. Eligibility depends on your school, programme and expected earnings."
+      - "Online application; upload documents in their portal checklist, which may ask for more."
+      - "Funds are paid to the university; living costs may need separate funding."
+
+ukvi_loan_letter:
+  # For using a loan as Student visa financial evidence. Confirm with your university.
+  - "Dated no more than 6 months before your visa application"
+  - "From a government, government-sponsored student loan company, or regulated academic/educational loan scheme"
+  - "In your name, stating the amount and that it is for your studies"
+  - "Funds available before you travel (or paid to the university); the only condition for release is the grant of your visa"
