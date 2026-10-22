@@ -7,9 +7,11 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, windows-latest]
         node: [20, 22]
     steps:
       - uses: actions/checkout@v4
@@ -19,9 +21,10 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install Chromium for form-filling tests
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install ${{ runner.os == 'Linux' && '--with-deps' || '' }} chromium
       - run: npm test
       - name: CLI smoke test
+        shell: bash
         run: |
           node bin/study-ops.js --version
           node bin/study-ops.js init

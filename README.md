@@ -94,6 +94,22 @@ study-ops init      # scaffolds data/student_profile.md, tracker.yaml, personal_
 cp .env.example .env   # then paste your Anthropic API key into .env
 ```
 
+### On Windows (PowerShell)
+
+```powershell
+winget install OpenJS.NodeJS.LTS Git.Git        # once; then open a NEW PowerShell window
+git clone https://github.com/Sharathanabattula/study-ops.git
+cd study-ops
+npm install
+npx playwright install chromium                 # for portal / form filling
+node bin/study-ops.js init
+Copy-Item .env.example .env; notepad .env       # paste your ANTHROPIC_API_KEY
+```
+
+- Multi-line examples in this README use `\` at line ends (macOS/Linux). In PowerShell, use a backtick `` ` `` instead, or put the whole command on one line.
+- If `npm` says *running scripts is disabled*, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once, or use Command Prompt.
+- `npm link` makes `study-ops` a command; otherwise run `node bin/study-ops.js …` from the folder.
+
 Fill in `data/student_profile.md`, then:
 
 | Command | Agent | Status |
