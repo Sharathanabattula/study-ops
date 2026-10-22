@@ -19,6 +19,7 @@ target:
   level: "MSc"                 # MSc | MA | MRes | MBA | LLM | PhD | BSc
   intake: "2027-09"            # YYYY-MM
   subjects: []                 # e.g. ["Finance", "Data Science"]
+  research_interests: []       # e.g. ["biotech venture financing", "asset pricing"]; used to find relevant faculty
   study_location: "london"     # london | outside-london (drives UKVI maintenance)
   living_zone: "inner"         # inner | outer: where in London you'd live (cost of attendance)
   shortlist: []                # e.g. ["LSE", "Imperial", "UCL", "Warwick"]

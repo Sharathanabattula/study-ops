@@ -122,7 +122,7 @@ test('generate-sop end-to-end: draft → critique → revise', async () => {
   await fs.writeFile(path.join(home, 'data', 'personal_statement.md'), '# Master\nI scaled assays at a CRO.');
   const requests = record((body, n) => [
     'First draft about assays.',
-    JSON.stringify({ scores: { specificity: 3, programme_fit: 2, evidence: 3, tone_match: 3, why_uk_and_goals: 3, voice: 4 }, unsupported_claims: ['I led a team of 50'], cliches: [], fixes: ['Cut the team claim'] }),
+    JSON.stringify({ scores: { specificity: 3, programme_fit: 2, evidence: 3, tone_match: 3, why_uk_and_goals: 3, voice: 4 }, references: [], unsupported_claims: ['I led a team of 50'], cliches: [], fixes: ['Cut the team claim'] }),
     'Final draft about assays at a CRO.',
   ][n - 1]);
 
@@ -135,7 +135,8 @@ test('generate-sop end-to-end: draft → critique → revise', async () => {
 
   assert.equal(res.status, 'complete');
   assert.equal(res.draft, 'Final draft about assays at a CRO.');
-  assert.match(await fs.readFile(res.outputPath, 'utf8'), /Unsupported claims removed/);
+  assert.match(await fs.readFile(res.outputPath, 'utf8'), /Changes applied in revision/);
+  assert.ok(res.warnings.some((w) => /No --url given/.test(w)));
 });
 
 test('htmlToText keeps structure and decodes entities', () => {

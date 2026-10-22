@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0 · 2026-10-22
+
+Phase 2: the positioning engine (documents).
+
+- `master-sop` (agent 8): narrative plan (central thesis + causal arc with cited evidence), interview questions written to `data/sop_interview.md` when evidence is missing, draft → rubric critique (incl. academic rigour) → revise, `--adopt` with automatic backup.
+- `generate-sop` (agent 2, rewritten): targets ≈30% rewrite measured by word-level LCS against the master. Specifics from the programme page (modules), `--research-urls` and `--find-faculty` (web search on official domains); every name is verified on a locally fetched page. Unverified references and numbers are fed back into the revision and re-checked on the final text.
+- `lor` (agent 9): one planning call assigns distinct angles and non-overlapping evidence; drafts follow UK reference conventions; pairwise 4-gram overlap and number checks trigger revisions. Output is a briefing plus a draft for the recommender to rewrite and submit.
+- `academic-cv` (agent 10): structured conversion of `data/resume.md` into a UK academic CV, rendered deterministically, with checks for unsupported numbers and publication titles, removal of DOB/photo/marital status, and prompts to quantify impact.
+- New shared guards in `src/lib/factcheck.js`; specifics researcher in `src/lib/specifics.js`.
+- Templates: `recommenders.yaml`, `resume.md`; profile gains `target.research_interests`.
+
 ## 0.3.0 · 2026-10-22
 
 Phase 1 intake: strategic profiling and university shortlisting.

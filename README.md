@@ -31,10 +31,16 @@ Inspired by [`santifer/career-ops`](https://github.com/santifer/career-ops). The
 - **💷 Cost & ROI Mapper**: the all-in cost of attendance (tuition, inner London / outer London / outside-London living costs, visa fee, health surcharge, flights) against your budget, plus payback on your salary uplift.
 - **📚 Syllabus Matcher**: maps your undergraduate modules to a programme's prerequisites (met, partial or missing) and suggests a bridging plan for the gaps.
 
-**Applications & visa**
+**Phase 2: The positioning engine** (documents)
+
+- **🧭 Master SOP Architect**: plans a central thesis and a causal arc (past academics → turning point → motivation → goals). It asks you questions where the profile is thin instead of inventing, then drafts, critiques and revises for academic rigour.
+- **✍️ University-specific SOP Tailor**: rewrites about 30% of the master for each university, measured in code, and weaves in real modules, faculty and labs. A name is used only if it appears on an official page Study-Ops fetched itself.
+- **🤝 LOR Drafter**: plans 2–3 letters with different angles (research, leadership, technical…), gives each its own evidence, and checks the drafts against each other so they don't sound alike. Each is a briefing and draft for the recommender to rewrite and submit.
+- **📄 Academic CV**: turns a job-search resume into a UK academic CV (education and research first, publications, quantified projects) and drops details UK CVs leave out (DOB, photo, marital status).
+
+**Evaluation & visa**
 
 - **🏛️ University Evaluator**: grades any Russell Group programme A–F (1.0–5.0) on admission probability, budget fit, ROI, programme fit and career outcomes.
-- **✍️ SOP Tailor**: rewrites one master statement for each university's register, e.g. LSE's argument-driven style or Imperial's evidence-first one, without inventing facts.
 - **🛂 UKVI Compliance Engine**: calculates exact proof of funds, the 28-day bank statement window and CAS deadlines. It is deterministic, tested and date-aware for rule changes.
 - **📋 Tracker**: one YAML file follows every application from `researching` to `enrolled`.
 
@@ -73,7 +79,10 @@ Fill in `data/student_profile.md`, then:
 | `study-ops cost [url] [--tuition] [--duration] [--zone inner\|outer\|outside]` | 6 · Cost of attendance + ROI | ✅ Ready (offline with `--tuition`) |
 | `study-ops match-syllabus <url> [--extra-url] [--modules-file]` | 7 · Syllabus Matcher → `reports/syllabus-<id>.md` | ✅ Ready (needs API key) |
 | `study-ops evaluate <url>` | 1 · University Evaluator: A–F grade, 1.0–5.0 score, report in `reports/`, tracker updated | ✅ Ready (needs API key) |
-| `study-ops generate-sop --uni <name> [--programme] [--words] [--url]` | 2 · SOP Tailor: draft → critique → revise, saved to `output/sop/` | ✅ Ready (needs API key) |
+| `study-ops master-sop [--words 1100] [--adopt] [--skip-interview]` | 8 · Master SOP → `output/sop/master.md` | ✅ Ready (needs API key) |
+| `study-ops generate-sop --uni <name> --url <page> [--research-urls …] [--find-faculty] [--words]` | 2 · ≈30% tailoring with verified specifics → `output/sop/<uni>.md` | ✅ Ready (needs API key) |
+| `study-ops lor [--only ids] [--programme]` | 9 · LOR drafts from `data/recommenders.yaml` → `output/lor/<id>.md` | ✅ Ready (needs API key) |
+| `study-ops academic-cv [--resume file]` | 10 · Resume → `output/cv/academic_cv.md` | ✅ Ready (needs API key) |
 | `study-ops audit-funds --location <london\|outside> --duration <months> --tuition <gbp>` | 3 · UKVI Compliance Engine | ✅ Ready (deterministic) |
 
 Without an API key, `evaluate` and `generate-sop` still run in scaffold mode. `generate-sop` then saves a ready-to-paste prompt for any model.
@@ -98,6 +107,22 @@ For each programme, the **margin** is your percentage minus the minimum, in perc
 
 **Grade conversion is a heuristic.** Indian CGPA → percentage uses the formula you set (`aicte`, `cbse`, `x10` or a custom formula from your transcript). Percentage → UK class uses editable tier bands in `config/grade_equivalence.yaml`. A university's own India table always overrides both.
 
+### How the documents stay truthful
+
+Admissions tutors notice invented details: a professor who isn't on the staff list, a metric that's too neat, a referee describing things they never saw. Every Phase 2 agent therefore writes from your files only, and code (not the model) checks the result:
+
+| Check | Where | What happens |
+|---|---|---|
+| **Numbers**: every figure must appear in your profile, statement, interview answers, recommender evidence or resume | all four | Flagged and sent back for revision; anything left is listed in the output |
+| **Names**: professors, labs and modules must appear on an official page Study-Ops fetched | SOP tailor | Unconfirmed names are dropped before drafting and flagged if they reappear |
+| **Tailoring ratio**: word-level diff against the master, aiming for ≈30% (20–45% band) | SOP tailor | Revised if outside the band; the final ratio is printed |
+| **Distinctness**: 4-gram overlap between every pair of LORs | LOR drafter | Letters that sound alike are rewritten |
+| **Publications**: each title must be in your resume | Academic CV | Listed for removal |
+
+**The master SOP interviews you.** `master-sop` first plans the narrative. If an essential piece is missing (the moment you noticed the problem, what you actually did), it writes the questions to `data/sop_interview.md` and stops. Answer them there and run it again.
+
+**About LORs.** A reference is the recommender's own testimony. Study-Ops gives each recommender a briefing and a starting draft built only from the `evidence` you list for them. They should rewrite it in their own words, correct anything inexact, and submit it themselves. Many UK universities collect references directly from referees, and some ask applicants not to draft them, so check each programme.
+
 ### Connecting Claude
 
 The two writing and judgement agents use [Anthropic's Claude](https://platform.claude.com) through the official `@anthropic-ai/sdk`.
@@ -113,7 +138,7 @@ How the integration behaves:
 - **Prompt caching.** Your profile and master statement are cached across the SOP draft → critique → revise calls.
 - **Server-side fallbacks** are on (`fallbacks: "default"`). If a request is declined, the API retries it on Anthropic's recommended fallback model. A request declined by every model shows a clear error.
 
-Rough cost on Opus 5.5 ($4 / $20 per million tokens), depending on page length: **about $0.05–0.25 per evaluation**, **$0.10–0.30 per tailored statement**, **$0.10–0.25 per syllabus match**, and **roughly $5–12 for a full 24-university shortlist** at 2 programmes each. That last figure includes web search at $10 per 1,000 searches. These are estimates, not measurements. Page extractions are cached for 30 days, so re-runs cost much less. Use `--unis` to keep a shortlist small.
+Rough cost on Opus 5.5 ($4 / $20 per million tokens), depending on page length: **about $0.05–0.25 per evaluation**, **$0.10–0.25 per syllabus match**, **$0.20–0.50 for the master SOP**, **$0.30–0.80 per tailored SOP with `--find-faculty`**, **$0.20–0.50 for a set of 3 LORs**, **$0.05–0.15 per CV**, and **roughly $5–12 for a full 24-university shortlist** at 2 programmes each. That last figure includes web search at $10 per 1,000 searches. These are estimates, not measurements. Page extractions are cached for 30 days, so re-runs cost much less. Use `--unis` to keep a shortlist small.
 
 ### `audit-funds` in detail
 
@@ -136,14 +161,19 @@ study-ops audit-funds --location london --duration 12 --tuition 38000 \
 bin/study-ops.js                 CLI routing (commander), rendering only
 src/agents/
   1_university_evaluator.js      URL + profile → A–F report
-  2_sop_tailor.js                master statement → university-specific SOP
+  2_sop_tailor.js                master → ≈30% tailored SOP with verified specifics
   3_ukvi_compliance_engine.js    funds, 28-day rule, CAS guardrails (pure functions)
   4_profile_auditor.js           CGPA → % → UK class / US GPA, backlogs, English (pure)
   5_shortlist_matrix.js          discover → extract → Safe/Target/Reach → report + tracker
   6_cost_roi_mapper.js           cost of attendance, budget fit, payback (pure)
   7_syllabus_matcher.js          UG modules vs programme prerequisites
+  8_master_sop.js                narrative plan → interview → draft → critique → revise
+  9_lor_drafter.js               distinct-angle LOR briefings + drafts, overlap check
+  10_academic_cv.js              resume → UK academic CV, fact checks
 src/llm/claude.js                the only module that calls an LLM (model, caching, fallbacks, errors)
 src/lib/programme.js             shared, cached programme-page extraction (data/programmes/)
+src/lib/specifics.js             modules, faculty and labs, verified on official pages
+src/lib/factcheck.js             number, name, overlap and change-ratio guards
 src/lib/                         paths, Markdown/YAML state, profile, registry, tracker, page fetcher
 src/ui/theme.js                  terminal design system (palette, panels, rows)
 src/commands/init.js             workspace scaffold + onboarding
@@ -158,10 +188,13 @@ reports/, output/                agent output (git-ignored)
 
 **State model**
 - `data/student_profile.md`: YAML front-matter holds machine-read facts (CGPA, IELTS bands, budget, shortlist). The Markdown body holds your narrative. Agents parse both: `##` sections are indexed by heading.
+- `data/recommenders.yaml`: 2–3 recommenders, each with the evidence they personally observed.
+- `data/resume.md`: your current resume, pasted as text.
+- `data/sop_interview.md`: questions from `master-sop`, answered by you.
 - `data/outcomes.yaml`: past admission results (anonymous) that turn the matrix into a data-driven one.
 - `data/tracker.yaml`: one entry per programme, with a status lifecycle running from `researching` through `cas_issued`, `visa_granted` and `enrolled`.
 
-**Privacy.** `data/`, `reports/` and `output/` are git-ignored. Set `STUDY_OPS_HOME` to keep them somewhere else, such as an encrypted volume. Nothing is sent to an LLM until you add an API key, and then only for `shortlist`, `evaluate`, `match-syllabus`, `generate-sop` and `cost <url>`. `audit-profile`, `audit-funds` and `cost --tuition` never leave your machine.
+**Privacy.** `data/`, `reports/` and `output/` are git-ignored. Set `STUDY_OPS_HOME` to keep them somewhere else, such as an encrypted volume. Nothing is sent to an LLM until you add an API key, and then only for `shortlist`, `evaluate`, `match-syllabus`, `cost <url>` and the Phase 2 document commands. `audit-profile`, `audit-funds` and `cost --tuition` never leave your machine.
 
 ## Development
 
@@ -174,6 +207,7 @@ STUDY_OPS_DEBUG=1   # print stack traces
 
 - ~~**0.2** Claude provider, evaluator extraction and scoring, SOP generate → critique → revise.~~ ✅
 - ~~**0.3** Phase 1 intake: profile audit, Safe/Target/Reach matrix, cost & ROI, syllabus matching.~~ ✅
+- ~~**0.4** Phase 2 positioning: master SOP, ≈30% tailoring with verified specifics, distinct LORs, academic CV.~~ ✅
 - **1.2** `study-ops tracker` (status board, deadline alerts), CAS checklist agent.
 - **2.x** More countries (Canada, Australia, Germany), dependants and sponsor modelling.
 

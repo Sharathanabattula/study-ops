@@ -1,0 +1,40 @@
+# ─────────────────────────────────────────────────────────────────────────────
+#  STUDY-OPS · RECOMMENDERS
+#  Used by `study-ops lor`. Describe 2–3 people who know your work well;
+#  most UK master's programmes want at least one academic referee.
+#
+#  `evidence` is everything the letter may say: specific things THIS person
+#  saw you do. Ask them what they remember, or remind them. The draft is
+#  built only from this list and your profile, so be concrete and truthful.
+#
+#  Drafts are for your recommenders to rewrite in their own words and submit
+#  themselves. Check each university's referee rules.
+# ─────────────────────────────────────────────────────────────────────────────
+schema_version: 1
+
+recommenders:
+  - id: academic-1                 # short, unique; becomes output/lor/<id>.md
+    name: ""                       # e.g. "Dr. A. Rao"
+    title: ""                      # e.g. "Associate Professor of Biotechnology"
+    organisation: ""
+    type: academic                 # academic | professional
+    relationship: ""               # e.g. "Taught me Biostatistics and supervised my final-year project"
+    known_since: ""                # YYYY-MM
+    focus: research                # research | leadership | technical | teamwork | initiative | communication | resilience
+    evidence:
+      - ""                         # e.g. "Redesigned the assay protocol in my project, cutting reagent cost by 18%"
+    comparative_statement: ""      # Only if they agree, e.g. "top 5 of 120 students I have taught"
+    word_limit: 500
+
+  - id: professional-1
+    name: ""
+    title: ""
+    organisation: ""
+    type: professional
+    relationship: ""
+    known_since: ""
+    focus: leadership
+    evidence:
+      - ""
+    comparative_statement: ""
+    word_limit: 500

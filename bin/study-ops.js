@@ -18,6 +18,9 @@ import { auditProfile } from '../src/agents/4_profile_auditor.js';
 import { buildShortlist } from '../src/agents/5_shortlist_matrix.js';
 import { budgetFit, costOfAttendance, estimateRoi } from '../src/agents/6_cost_roi_mapper.js';
 import { matchSyllabus } from '../src/agents/7_syllabus_matcher.js';
+import { buildMasterSop } from '../src/agents/8_master_sop.js';
+import { MAX_OVERLAP, draftLors } from '../src/agents/9_lor_drafter.js';
+import { buildAcademicCv } from '../src/agents/10_academic_cv.js';
 import { getProgramme, totalTuition, yearOneTuition } from '../src/lib/programme.js';
 import { loadProfile } from '../src/lib/profile.js';
 import { explainError, model } from '../src/llm/claude.js';
@@ -242,7 +245,7 @@ program
     console.log();
   }));
 
-/* ─────────────── Applications & visa ─────────────── */
+/* ─────────────── Programme evaluation ─────────────── */
 
 program
   .command('evaluate')
@@ -282,28 +285,63 @@ program
     console.log();
   }));
 
+/* ─────────────── Phase 2 · Positioning engine (documents) ─────────────── */
+
+program
+  .command('master-sop')
+  .description('Build your master statement of purpose: narrative plan, interview, draft, revise')
+  .option('-w, --words <n>', 'target length', positiveNumber, 1100)
+  .option('--adopt', 'make it your master in data/personal_statement.md (old one is backed up)')
+  .option('--skip-interview', 'draft even if important questions are unanswered')
+  .action(run(async (opts) => {
+    banner('Master SOP Architect');
+    const r = await buildMasterSop({ words: opts.words, adopt: opts.adopt, skipInterview: opts.skipInterview, onProgress: progress });
+    console.log();
+    panel('central thesis', [r.plan.central_thesis.length > 76 ? `${r.plan.central_thesis.slice(0, 75)}…` : r.plan.central_thesis], { tint: color.brand });
+    if (r.status === 'needs_answers') {
+      warn(`${r.questions.length} question(s) need your answers before a strong draft is possible:`);
+      for (const q of r.questions.slice(0, 5)) note(`${color.accent('•')} ${q.question}`);
+      success(`Answer them in ${color.bold(path.relative(process.cwd(), r.interviewPath))}, then run ${color.bold('study-ops master-sop')} again.`);
+      console.log();
+      return;
+    }
+    panel('first-draft review', Object.entries(r.critique.scores).map(([k, v]) => row(k.replace(/_/g, ' '), `${v}/5`, 18)));
+    success(`Master statement (${r.wordCount} words) saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
+    if (r.adopted) success(`Adopted as data/personal_statement.md${r.backupPath ? ` (previous saved to ${path.basename(r.backupPath)})` : ''}`);
+    else note('Review it, then run with --adopt to make it your master.');
+    for (const w of r.warnings) warn(w);
+    console.log();
+  }));
+
 program
   .command('generate-sop')
-  .description('Tailor your master personal statement to one university')
+  .description('Tailor ≈30% of your master statement to one university, with verified faculty, labs and modules')
   .requiredOption('-u, --uni <name>', 'university name or key, e.g. LSE, imperial, ucl')
+  .option('--url <url>', 'programme page (enables real modules and the page’s own prompts)')
+  .option('--research-urls <urls>', 'comma-separated faculty or lab pages to draw names from')
+  .option('--find-faculty', 'search the university’s site for relevant faculty and labs (verified)')
   .option('-p, --programme <name>', 'programme title, e.g. "MSc Finance"')
   .option('-w, --words <n>', 'word limit', positiveNumber)
-  .option('--url <url>', 'programme page, so the draft can reference real modules and prompts')
-  .action(run(async ({ uni, programme, words, url }) => {
+  .option('--refresh', 're-fetch pages and specifics')
+  .action(run(async (opts) => {
     banner('SOP Tailor');
-    const result = await tailorPersonalStatement({ university: uni, programme, wordLimit: words, url, onProgress: progress });
+    const result = await tailorPersonalStatement({
+      university: opts.uni, programme: opts.programme, wordLimit: opts.words, url: opts.url,
+      researchUrls: opts.researchUrls?.split(',').map((s) => s.trim()).filter(Boolean), findFaculty: opts.findFaculty,
+      refresh: opts.refresh, onProgress: progress,
+    });
     if (result.status === 'complete') console.log();
     panel(result.university, [row('Tone', result.tone.length > 70 ? `${result.tone.slice(0, 69)}…` : result.tone, 6)]);
 
     if (result.status === 'complete') {
-      const scores = Object.entries(result.critique.scores).map(([k, v]) => row(k.replace(/_/g, ' '), `${v}/5`, 18));
-      panel('first-draft review', [
-        ...scores,
-        '',
-        row('unsupported claims', String(result.critique.unsupported_claims.length), 18),
-        row('final word count', String(result.wordCount), 18),
+      const s = result.specifics;
+      panel('tailoring', [
+        row('Rewritten vs master', `${Math.round(result.changeRatio * 100)}% ${color.muted('(target ≈ 30%)')}`, 20),
+        row('Verified specifics', s ? `${s.modules.length} modules · ${s.people.length} faculty · ${s.labs.length} labs` : '–', 20),
+        row('Final word count', String(result.wordCount), 20),
       ]);
-      success(`Final statement saved to ${color.bold(path.relative(process.cwd(), result.outputPath))}`);
+      panel('first-draft review', Object.entries(result.critique.scores).map(([k, v]) => row(k.replace(/_/g, ' '), `${v}/5`, 20)));
+      success(`Tailored statement saved to ${color.bold(path.relative(process.cwd(), result.outputPath))}`);
       note(`Drafted, critiqued and revised with ${model()}.`);
     } else {
       success(`Prompt saved to ${color.bold(path.relative(process.cwd(), result.promptPath))}`);
@@ -312,6 +350,52 @@ program
     for (const w of result.warnings) warn(w);
     console.log();
   }));
+
+program
+  .command('lor')
+  .description('Draft 2–3 distinct recommendation letters for your recommenders to edit and submit')
+  .option('--only <ids>', 'comma-separated recommender ids to draft')
+  .option('-p, --programme <name>', 'target programme, for the suitability paragraph')
+  .action(run(async (opts) => {
+    banner('LOR Drafter');
+    const r = await draftLors({ only: opts.only?.split(',').map((s) => s.trim()), programme: opts.programme, onProgress: progress });
+    console.log();
+    panel('letters', r.letters.map((L) => {
+      const worst = Math.max(0, ...L.overlaps.map((o) => o.score));
+      const distinct = worst > MAX_OVERLAP ? color.warn(`overlap ${worst}`) : color.ok(`distinct ${worst}`);
+      return `${L.recommender.name.slice(0, 24).padEnd(24)} ${L.plan.primary_angle.padEnd(14)} ${String(L.wordCount).padStart(4)} words  ${distinct}`;
+    }), { tint: color.brand });
+    for (const L of r.letters) success(`${color.bold(path.relative(process.cwd(), L.outputPath))}`);
+    for (const w of r.warnings) warn(w);
+    note('These are drafts for your recommenders to rewrite in their own words and submit themselves.');
+    console.log();
+  }));
+
+program
+  .command('academic-cv')
+  .description('Convert your job-search resume into a UK academic CV')
+  .option('-r, --resume <path>', 'resume file (default: data/resume.md)')
+  .action(run(async (opts) => {
+    banner('Academic CV');
+    const r = await buildAcademicCv({ resumePath: opts.resume, onProgress: progress });
+    console.log();
+    const c = r.cv;
+    panel(c.header.name, [
+      row('Education', String(c.education.length), 22),
+      row('Research experience', String(c.research_experience.length), 22),
+      row('Publications', String(c.publications.length), 22),
+      row('Projects', String(c.projects.length), 22),
+      row('Professional', String(c.professional_experience.length), 22),
+      row('Length', `${r.wordCount} words ${color.muted('(≈2 pages ≈ 900)')}`, 22),
+    ], { tint: color.brand });
+    if (c.removed_personal_details.length) note(`Removed for UK convention: ${c.removed_personal_details.join(', ')}`);
+    if (c.quantify_prompts.length) warn(`${c.quantify_prompts.length} bullet(s) would be stronger with real numbers (listed in the file).`);
+    for (const w of r.warnings) warn(w);
+    success(`Saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
+    console.log();
+  }));
+
+/* ─────────────── Visa ─────────────── */
 
 program
   .command('audit-funds')

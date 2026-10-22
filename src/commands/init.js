@@ -15,6 +15,8 @@ const SCAFFOLD = [
   { template: 'tracker.yaml', target: PATHS.tracker },
   { template: 'personal_statement.md', target: PATHS.personalStatement },
   { template: 'outcomes.yaml', target: PATHS.outcomes },
+  { template: 'recommenders.yaml', target: PATHS.recommenders },
+  { template: 'resume.md', target: PATHS.resume },
 ];
 
 /**
@@ -61,14 +63,17 @@ export function printWelcome({ created, skipped }) {
   ], { tint: color.brand });
 
   heading('Then run');
-  const cmd = (text, desc = '') => `${color.accent(text.padEnd(44))}${color.muted(desc)}`;
+  const cmd = (text, desc = '') => `${color.accent(text.padEnd(47))}${color.muted(desc)}`;
   panel('commands', [
     cmd('study-ops audit-profile', 'UK class, US GPA, backlogs, English'),
     cmd('study-ops shortlist --subject "Finance"', 'Safe / Target / Reach matrix'),
     cmd('study-ops cost <programme-url>', 'all-in cost vs budget, ROI'),
     cmd('study-ops match-syllabus <programme-url>', 'your modules vs prerequisites'),
     cmd('study-ops evaluate <programme-url>', 'A–F fit report'),
-    cmd('study-ops generate-sop --uni LSE', 'tailored statement'),
+    cmd('study-ops master-sop', 'central narrative (interviews you first)'),
+    cmd('study-ops generate-sop --uni LSE --url <page>', '≈30% tailored, real faculty & modules'),
+    cmd('study-ops lor', '2–3 distinct recommender drafts'),
+    cmd('study-ops academic-cv', 'resume → UK academic CV'),
     cmd('study-ops audit-funds --location london \\', 'UKVI proof of funds'),
     cmd('    --duration 12 --tuition 38000'),
   ]);
