@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.0 · 2026-10-22
+
+Run on your Claude subscription, career-ops style.
+
+- New provider `src/llm/claude_code.js`: every AI step can run through the signed-in Claude Code CLI (`claude -p --output-format json`, `--json-schema` for structured output, `--system-prompt-file`, prompt on stdin, `--tools ""` for writing and WebSearch/WebFetch for searches, `--no-session-persistence`, temp working directory). API-key variables are removed from the child environment so the subscription is used. Zod validation of every answer. Verified live.
+- Automatic provider choice: API key → API; otherwise installed `claude` → subscription. `STUDY_OPS_PROVIDER=claude-code|api|off` to force.
+- `study-ops doctor`: Node, Claude Code version, sign-in status, API key, active provider, Playwright.
+- `CLAUDE.md`, `.claude/skills/study-ops/SKILL.md` and `.claude/settings.json` (deny rules for passport, finance, visa, statements, browser profiles, `.env`) for using Study-Ops conversationally inside Claude Code.
+- Elite SOP: forbids bracketed notes inside the essay and flags any that remain.
+- CI runs on Windows as well as Ubuntu; portable `npm test`; PowerShell setup guide.
+
 ## 0.7.0 · 2026-10-22
 
 Phases 4–6: money, visa and landing.

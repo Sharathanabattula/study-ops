@@ -181,7 +181,7 @@ export async function findUniversityAwards(university, { level = 'MSc', subject 
  * Full match: external schemes + (optionally) each university's awards.
  * @param {object} [input]
  * @param {string[]} [input.universities]  Registry keys; default = tracked applications' universities.
- * @param {boolean} [input.internal=true]  Search university sites (needs an API key).
+ * @param {boolean} [input.internal=true]  Search university sites (needs Claude access).
  * @param {number} [input.courseMonths]
  * @param {boolean} [input.refresh]
  * @param {Date} [input.today]
@@ -199,7 +199,7 @@ export async function matchScholarships({ universities, internal = true, courseM
   const internalResults = [];
   const warnings = [];
   if (internal) {
-    if (!isConfigured()) warnings.push('University awards need an API key (ANTHROPIC_API_KEY). Showing external schemes only.');
+    if (!isConfigured()) warnings.push('University awards need Claude access (Claude Code sign-in or ANTHROPIC_API_KEY). Showing external schemes only.');
     else {
       let keys = universities;
       if (!keys?.length) {

@@ -110,7 +110,7 @@ function describe(r) {
  * @param {(stage: string) => void} [input.onProgress]
  */
 export async function draftLors({ only, programme, onProgress = () => {} } = {}) {
-  if (!isConfigured()) throw new Error('LOR drafting uses Claude. Add ANTHROPIC_API_KEY to .env first.');
+  if (!isConfigured()) throw new Error('LOR drafting uses Claude. Sign in to Claude Code with your Claude subscription, or add ANTHROPIC_API_KEY to .env.');
   const [profile, all] = await Promise.all([loadProfile(), loadRecommenders()]);
   const warnings = [];
   if (all.length < 2) warnings.push('Most programmes ask for two references. Add a second recommender.');

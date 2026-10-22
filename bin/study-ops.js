@@ -37,7 +37,8 @@ import { readYaml } from '../src/lib/files.js';
 import { PATHS } from '../src/lib/paths.js';
 import { getProgramme, totalTuition, yearOneTuition } from '../src/lib/programme.js';
 import { loadProfile } from '../src/lib/profile.js';
-import { explainError, model } from '../src/llm/claude.js';
+import { NOT_CONFIGURED, explainError, provider, providerLabel } from '../src/llm/claude.js';
+import spawn from 'cross-spawn';
 import { banner, color, fail, gbp, heading, note, panel, row, success, warn } from '../src/ui/theme.js';
 
 const pkg = createRequire(import.meta.url)('../package.json');
@@ -89,6 +90,32 @@ const program = new Command()
     return '';
   })
   .showHelpAfterError(color.muted('(run study-ops --help for usage)'));
+
+program
+  .command('doctor')
+  .description('Check your setup: Claude access (subscription or API key), browser, Node')
+  .action(run(async () => {
+    banner('Doctor');
+    const p = provider();
+    const lines = [row('Node', process.version, 18)];
+    const cc = spawn.sync(process.env.STUDY_OPS_CLAUDE_BIN || 'claude', ['--version'], { encoding: 'utf8', windowsHide: true });
+    lines.push(row('Claude Code', cc.status === 0 ? color.ok(cc.stdout.trim()) : color.muted('not installed'), 18));
+    if (cc.status === 0) {
+      const auth = spawn.sync(process.env.STUDY_OPS_CLAUDE_BIN || 'claude', ['auth', 'status'], { encoding: 'utf8', windowsHide: true });
+      let method = null;
+      try { method = JSON.parse(auth.stdout).authMethod; } catch { /* older CLI */ }
+      lines.push(row('Signed in', auth.status === 0 ? color.ok(`yes${method ? ` (${method})` : ''}`) : color.err('no: run `claude` and log in'), 18));
+    }
+    lines.push(row('API key', process.env.ANTHROPIC_API_KEY ? color.ok('set') : color.muted('not set'), 18));
+    lines.push(row('AI steps use', p ? color.bold(providerLabel()) : color.err('nothing yet'), 18));
+    let pw = 'not installed';
+    try { await import('playwright'); pw = 'installed'; } catch { /* optional */ }
+    lines.push(row('Playwright', pw === 'installed' ? color.ok(pw) : color.warn(`${pw}: needed for portal/fill/visa open`), 18));
+    panel('setup', lines, { tint: p ? color.ok : color.warn });
+    if (!p) warn(NOT_CONFIGURED);
+    if (p === 'api' && cc.status === 0) note('Both are available. To use your subscription instead of the API key, set STUDY_OPS_PROVIDER=claude-code in .env.');
+    console.log();
+  }));
 
 program
   .command('init')
@@ -291,7 +318,7 @@ program
       success(`Report saved to ${color.bold(path.relative(process.cwd(), report.reportPath))}`);
       if (report.tracker === 'created' || report.tracker === 'updated') success(`Tracker ${report.tracker}: ${color.bold(report.id)}`);
     } else {
-      warn('Scaffold mode: add ANTHROPIC_API_KEY to .env to enable scoring.');
+      warn('Scaffold mode: sign in to Claude Code (subscription) or add ANTHROPIC_API_KEY to enable scoring.');
     }
     if (report.missingProfileFields.length) {
       warn(`Profile gaps: ${report.missingProfileFields.map((f) => color.bold(f)).join(', ')}`);
@@ -359,7 +386,7 @@ program
       success(`${r.wordCount} words saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
     } else {
       success(`Prompt saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
-      note('Scaffold mode: add ANTHROPIC_API_KEY to .env to generate the statement directly.');
+      note('Scaffold mode: sign in to Claude Code (subscription) or add ANTHROPIC_API_KEY to generate it directly.');
     }
     for (const w of r.warnings) warn(w);
     console.log();
@@ -394,10 +421,10 @@ program
       ]);
       panel('first-draft review', Object.entries(result.critique.scores).map(([k, v]) => row(k.replace(/_/g, ' '), `${v}/5`, 20)));
       success(`Tailored statement saved to ${color.bold(path.relative(process.cwd(), result.outputPath))}`);
-      note(`Drafted, critiqued and revised with ${model()}.`);
+      note(`Drafted, critiqued and revised with ${providerLabel()}.`);
     } else {
       success(`Prompt saved to ${color.bold(path.relative(process.cwd(), result.promptPath))}`);
-      note('Scaffold mode: add ANTHROPIC_API_KEY to .env to generate the statement directly.');
+      note('Scaffold mode: sign in to Claude Code (subscription) or add ANTHROPIC_API_KEY to generate it directly.');
     }
     for (const w of result.warnings) warn(w);
     console.log();

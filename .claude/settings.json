@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node bin/study-ops.js *)",
+      "Bash(npm test)",
+      "Bash(npm install)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./data/applicant.yaml)",
+      "Read(./data/finance.yaml)",
+      "Read(./data/visa.yaml)",
+      "Read(./data/statements/**)",
+      "Read(./data/browser/**)",
+      "Read(./data/forms/**)",
+      "Read(./outputs/forms/**)",
+      "Edit(./data/applicant.yaml)",
+      "Edit(./data/finance.yaml)",
+      "Edit(./data/visa.yaml)"
+    ]
+  }
+}

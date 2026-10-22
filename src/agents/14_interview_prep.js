@@ -146,7 +146,7 @@ async function gatherContext({ university, course, url, profile }) {
  */
 export async function generateInterviewBank({ university, course, type, url, count = 12, onProgress = () => {} }) {
   if (!TYPES[type]) throw new Error(`Unknown interview type "${type}". Use: ${Object.keys(TYPES).join(', ')}`);
-  if (!isConfigured()) throw new Error('Interview prep uses Claude. Add ANTHROPIC_API_KEY to .env first.');
+  if (!isConfigured()) throw new Error('Interview prep uses Claude. Sign in to Claude Code with your Claude subscription, or add ANTHROPIC_API_KEY to .env.');
   const profile = await loadProfile();
   const t = TYPES[type];
   const { context, sources, universityName } = await gatherContext({ university, course, url, profile });
@@ -223,7 +223,7 @@ export function answerChecks(answer, answerSeconds, framework) {
  * @param {{ ask: (prompt: string) => Promise<string>, print: (s: string) => void, countdown?: (seconds: number, label: string) => Promise<void> }} input.io
  */
 export async function practiceSession({ university, type, count = 5, prep, answer, io }) {
-  if (!isConfigured()) throw new Error('Practice feedback uses Claude. Add ANTHROPIC_API_KEY to .env first.');
+  if (!isConfigured()) throw new Error('Practice feedback uses Claude. Sign in to Claude Code with your Claude subscription, or add ANTHROPIC_API_KEY to .env.');
   const files = bankPath(university, type);
   if (!(await exists(files.yaml))) throw new Error(`No question bank yet. Run: study-ops interview --uni "${university}" --course "<course>" --type ${type}`);
   const bank = YAML.parse(await fs.readFile(files.yaml, 'utf8'));

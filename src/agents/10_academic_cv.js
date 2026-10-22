@@ -121,7 +121,7 @@ export function renderCv(cv) {
  * @param {(stage: string) => void} [input.onProgress]
  */
 export async function buildAcademicCv({ resumePath = PATHS.resume, onProgress = () => {} } = {}) {
-  if (!isConfigured()) throw new Error('CV conversion uses Claude. Add ANTHROPIC_API_KEY to .env first.');
+  if (!isConfigured()) throw new Error('CV conversion uses Claude. Sign in to Claude Code with your Claude subscription, or add ANTHROPIC_API_KEY to .env.');
   if (!(await exists(resumePath))) throw new Error(`No resume at ${resumePath}. Paste your current resume into data/resume.md (plain text or Markdown).`);
   const resume = (await fs.readFile(resumePath, 'utf8')).trim();
   if (resume.replace(/^#.*$|^>.*$|<!--[\s\S]*?-->/gm, '').trim().length < 200) {

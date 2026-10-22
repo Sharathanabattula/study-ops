@@ -91,7 +91,8 @@ git clone https://github.com/Sharathanabattula/study-ops.git && cd study-ops
 npm install
 npm link            # optional: puts `study-ops` on your PATH
 study-ops init      # scaffolds data/student_profile.md, tracker.yaml, personal_statement.md
-cp .env.example .env   # then paste your Anthropic API key into .env
+# Claude access: sign in to Claude Code with your subscription (or set an API key, see below)
+study-ops doctor
 ```
 
 ### On Windows (PowerShell)
@@ -103,7 +104,9 @@ cd study-ops
 npm install
 npx playwright install chromium                 # for portal / form filling
 node bin/study-ops.js init
-Copy-Item .env.example .env; notepad .env       # paste your ANTHROPIC_API_KEY
+irm https://claude.ai/install.ps1 | iex          # installs the `claude` command (or: winget install Anthropic.ClaudeCode)
+claude                                          # once: sign in with your Claude Pro/Max account, then type /exit
+node bin/study-ops.js doctor                    # should say: AI steps use your Claude subscription
 ```
 
 - Multi-line examples in this README use `\` at line ends (macOS/Linux). In PowerShell, use a backtick `` ` `` instead, or put the whole command on one line.
@@ -114,6 +117,7 @@ Fill in `data/student_profile.md`, then:
 
 | Command | Agent | Status |
 |---|---|---|
+| `study-ops doctor` | Setup check: Claude subscription / API key, Playwright | ✅ Ready |
 | `study-ops init [--force]` | Workspace scaffold | ✅ Ready |
 | `study-ops audit-profile` | 4 · Profile Auditor | ✅ Ready (offline) |
 | `study-ops shortlist --subject <s> [--unis lse,ucl] [--urls …] [--max-per-uni 2]` | 5 · Safe / Target / Reach matrix → `reports/shortlist-<subject>.md` | ✅ Ready (needs API key) |
@@ -217,22 +221,29 @@ A CSV row whose amounts contain unquoted commas stops the audit with an error ra
 
 **Not immigration advice.** Study-Ops is a self-service tool. For advice on your case, use your university's international student advisers or an adviser regulated by the Immigration Advice Authority (IAA).
 
-### Connecting Claude
+### Connecting Claude: subscription or API key
 
-The two writing and judgement agents use [Anthropic's Claude](https://platform.claude.com) through the official `@anthropic-ai/sdk`.
+**Option A: your Claude subscription (Pro/Max), the career-ops way. No API key needed.**
 
-1. Create an API key at <https://platform.claude.com/settings/keys>.
-2. `cp .env.example .env` and set `ANTHROPIC_API_KEY=sk-ant-...`.
-3. Optional: `STUDY_OPS_MODEL` picks the model. The default is `claude-opus-5-5`.
+1. Install the Claude Code command line (`irm https://claude.ai/install.ps1 | iex` on Windows, `curl -fsSL https://claude.ai/install.sh | bash` on macOS/Linux), run `claude` once and sign in. Claude Code needs a **Pro, Max, Team or Enterprise** plan; the free plan doesn't include it. The desktop app alone isn't enough: Study-Ops calls the `claude` command.
+2. Leave `ANTHROPIC_API_KEY` unset. Run `study-ops doctor`, which should report *AI steps use: your Claude subscription*.
 
-How the integration behaves:
+Every AI step then runs through `claude -p` (Claude Code's headless mode) and counts against your plan's usage limits instead of API billing. Study-Ops runs it from a temporary folder with no session history; writing calls get no tools, and search calls get only WebSearch/WebFetch. Every name, URL and number still passes the same local verification. A full 24-university shortlist uses a fair share of a plan's limits, so use `--unis` to batch it.
+
+**Use it inside Claude Code, like career-ops.** Open this folder in Claude Code (desktop or terminal) and ask in plain English: *"audit my profile"*, *"shortlist finance programmes at LSE, UCL and Warwick"*, *"write my Imperial SOP"*. Claude Code follows `CLAUDE.md` and the `/study-ops` skill to run the right commands. `.claude/settings.json` stops it from reading `data/applicant.yaml`, `data/finance.yaml`, `data/visa.yaml`, bank statements and `.env`; the CLI reads those locally.
+
+> Use your subscription for your own applications. If you run Study-Ops for other people (for example as a consultancy), each person should sign in with their own account, or you should use an API key.
+
+**Option B: an API key (pay per use).** Create one at <https://platform.claude.com/settings/keys>, `cp .env.example .env` and set `ANTHROPIC_API_KEY=sk-ant-...`. Optional: `STUDY_OPS_MODEL` (default `claude-opus-5-5`). If both are available the key wins; set `STUDY_OPS_PROVIDER=claude-code` to prefer the subscription.
+
+How the API integration behaves:
 - **Pages are fetched on your machine.** Only the page text, your profile and your statement are sent to Anthropic.
 - **Structured outputs.** Requirements, scores and critiques come back validated against Zod schemas, so they can't be malformed.
 - **The arithmetic isn't the model's.** IELTS band gaps, tuition vs budget and UKVI living costs are computed in code and handed to Claude as facts.
 - **Prompt caching.** Your profile and master statement are cached across the SOP draft → critique → revise calls.
 - **Server-side fallbacks** are on (`fallbacks: "default"`). If a request is declined, the API retries it on Anthropic's recommended fallback model. A request declined by every model shows a clear error.
 
-Rough cost on Opus 5.5 ($4 / $20 per million tokens), depending on page length: **about $0.05–0.25 per evaluation**, **$0.10–0.25 per syllabus match**, **$0.20–0.50 for the master SOP**, **$0.30–0.80 per tailored SOP with `--find-faculty`**, **$0.20–0.50 for a set of 3 LORs**, **$0.05–0.15 per CV**, **$0.05–0.20 per interview bank** and **about $0.02–0.05 per practice answer**, **under $0.01 to map a new form** (cached after the first time), **$0.10–0.40 per university awards search** and **$0.15–0.50 per accommodation search** (web search included), and **roughly $5–12 for a full 24-university shortlist** at 2 programmes each. That last figure includes web search at $10 per 1,000 searches. These are estimates, not measurements. Page extractions are cached for 30 days, so re-runs cost much less. Use `--unis` to keep a shortlist small.
+On a subscription these count toward your plan's usage limits rather than costing money. With an API key, rough cost on Opus 5.5 ($4 / $20 per million tokens), depending on page length, is: **about $0.05–0.25 per evaluation**, **$0.10–0.25 per syllabus match**, **$0.20–0.50 for the master SOP**, **$0.30–0.80 per tailored SOP with `--find-faculty`**, **$0.20–0.50 for a set of 3 LORs**, **$0.05–0.15 per CV**, **$0.05–0.20 per interview bank** and **about $0.02–0.05 per practice answer**, **under $0.01 to map a new form** (cached after the first time), **$0.10–0.40 per university awards search** and **$0.15–0.50 per accommodation search** (web search included), and **roughly $5–12 for a full 24-university shortlist** at 2 programmes each. That last figure includes web search at $10 per 1,000 searches. These are estimates, not measurements. Page extractions are cached for 30 days, so re-runs cost much less. Use `--unis` to keep a shortlist small.
 
 ### `audit-funds` in detail
 
@@ -274,7 +285,9 @@ src/agents/
   18_statement_auditor.js        bank CSV parsing, carry-forward balances, 28-day audit (pure)
   19_visa_filing.js              visa documents, fees, date gates, assisted gov.uk session
   20_arrival_planner.js          verified accommodation + dated arrival checklist
-src/llm/claude.js                the only module that calls an LLM (model, caching, fallbacks, errors)
+src/llm/claude.js                the only module that calls an LLM: picks subscription or API
+src/llm/claude_code.js           subscription provider: headless `claude -p` with JSON schemas
+CLAUDE.md, .claude/              Claude Code project instructions, /study-ops skill, privacy deny rules
 src/lib/programme.js             shared, cached programme-page extraction (data/programmes/)
 src/lib/specifics.js             modules, faculty and labs, verified on official pages
 src/lib/factcheck.js             number, name, overlap and change-ratio guards
@@ -321,6 +334,7 @@ STUDY_OPS_DEBUG=1   # print stack traces
 
 - ~~**0.2** Claude provider, evaluator extraction and scoring, SOP generate → critique → revise.~~ ✅
 - ~~**0.3** Phase 1 intake: profile audit, Safe/Target/Reach matrix, cost & ROI, syllabus matching.~~ ✅
+- ~~**0.8** Run on a Claude subscription via Claude Code (no API key); CLAUDE.md + /study-ops skill; Windows CI.~~ ✅
 - ~~**0.7** Phases 4–6: scholarships, loan dockets, CAS gates, INR proof of funds, statement audit, visa filing, accommodation, arrival.~~ ✅
 - ~~**0.6** Phase 3 execution: application auditor, portal manager, assisted form filling, interview prep.~~ ✅
 - ~~**0.5** Elite SOP engine: framework-as-system-prompt, `generate-sop --prof --module --lab`, rule checks in code.~~ ✅

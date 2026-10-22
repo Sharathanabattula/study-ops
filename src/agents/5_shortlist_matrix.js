@@ -230,7 +230,7 @@ export async function discoverProgrammes({ university, subject, level, maxPerUni
  * @param {typeof fetch} [input.fetchImpl]
  */
 export async function buildShortlist({ subject, level = 'MSc', universities, urls, maxPerUniversity = 2, refresh = false, onProgress = () => {}, fetchImpl }) {
-  if (!isConfigured()) throw new Error('The shortlist reads programme pages with Claude. Add ANTHROPIC_API_KEY to .env first.');
+  if (!isConfigured()) throw new Error('The shortlist reads programme pages with Claude. Sign in to Claude Code with your Claude subscription, or add ANTHROPIC_API_KEY to .env.');
   const profile = await loadProfile();
   const [audit, gradeRules, registry] = await Promise.all([auditProfile({ profile }), loadGradeRules(), loadUniversities()]);
   const outcomesFile = PATHS.outcomes;

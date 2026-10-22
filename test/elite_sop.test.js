@@ -125,6 +125,11 @@ test('missing Rule 3 details are reported, never invented', async () => {
   assert.ok(r.warnings.some((w) => /No lab supplied/.test(w)));
 });
 
+test('bracketed editorial notes inside an essay are detected', async () => {
+  const { bracketNotes } = await import('../src/agents/2_sop_tailor.js');
+  assert.deepEqual(bracketNotes('I would study X. [No usable professor was supplied, so none is named.] Then Y [1].'), ['[No usable professor was supplied, so none is named.]']);
+});
+
 test('refuses an empty raw-material template', async () => {
   await fs.copyFile(path.join(PATHS.templates, 'master_sop_raw.md'), PATHS.masterRaw);
   await assert.rejects(generateTailoredSOP('LSE', 'MSc Finance', DETAILS), /still the empty template/);
@@ -133,7 +138,7 @@ test('refuses an empty raw-material template', async () => {
 
 test('CLI: study-ops generate-sop --uni --course --prof --module works end to end (scaffold mode)', () => {
   const bin = fileURLToPath(new URL('../bin/study-ops.js', import.meta.url));
-  const env = { ...process.env, STUDY_OPS_HOME: home };
+  const env = { ...process.env, STUDY_OPS_HOME: home, STUDY_OPS_PROVIDER: 'off' };
   delete env.ANTHROPIC_API_KEY;
   const out = spawnSync(process.execPath, [bin, 'generate-sop', '--uni', 'Target University', '--course', 'Course Name', '--prof', 'Professor Name', '--module', 'Specific Module'], { env, encoding: 'utf8' });
   assert.equal(out.status, 0, out.stderr);

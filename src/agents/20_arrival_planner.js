@@ -56,7 +56,7 @@ const ListingsSchema = z.object({
  * @param {typeof fetch} [input.fetchImpl]
  */
 export async function findAccommodation({ university, campus, maxWeekly, onProgress = () => {}, fetchImpl }) {
-  if (!isConfigured()) throw new Error('Accommodation search uses Claude web search. Add ANTHROPIC_API_KEY to .env first.');
+  if (!isConfigured()) throw new Error('Accommodation search uses Claude web search. Sign in to Claude Code with your Claude subscription, or add ANTHROPIC_API_KEY to .env.');
   const uni = await findUniversity(university);
   if (!uni) throw new Error(`"${university}" is not in the registry.`);
   const where = campus ? `${uni.name}, ${campus} campus` : uni.name;

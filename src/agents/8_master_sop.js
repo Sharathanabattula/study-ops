@@ -104,7 +104,7 @@ export function renderInterview(questions) {
  * @param {(stage: string) => void} [input.onProgress]
  */
 export async function buildMasterSop({ words = 1100, adopt = false, skipInterview = false, onProgress = () => {} } = {}) {
-  if (!isConfigured()) throw new Error('The master SOP is written with Claude. Add ANTHROPIC_API_KEY to .env first.');
+  if (!isConfigured()) throw new Error('The master SOP is written with Claude. Sign in to Claude Code with your Claude subscription, or add ANTHROPIC_API_KEY to .env.');
   const profile = await loadProfile();
   const existing = (await exists(PATHS.personalStatement)) ? (await fs.readFile(PATHS.personalStatement, 'utf8')).trim() : '';
   const hasExisting = existing.replace(/^#.*$|^>.*$/gm, '').trim().length > 200; // ignore the empty template

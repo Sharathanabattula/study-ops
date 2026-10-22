@@ -77,7 +77,7 @@ export function formatModules(modules) {
  * @param {typeof fetch} [input.fetchImpl]
  */
 export async function matchSyllabus({ url, extraUrl, modulesFile, refresh = false, onProgress = () => {}, fetchImpl }) {
-  if (!isConfigured()) throw new Error('Syllabus matching reads programme pages with Claude. Add ANTHROPIC_API_KEY to .env first.');
+  if (!isConfigured()) throw new Error('Syllabus matching reads programme pages with Claude. Sign in to Claude Code with your Claude subscription, or add ANTHROPIC_API_KEY to .env.');
   const profile = await loadProfile();
 
   const profileModules = profile.facts.academics?.modules ?? [];

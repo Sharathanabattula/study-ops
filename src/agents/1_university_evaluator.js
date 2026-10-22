@@ -227,7 +227,7 @@ export async function evaluateUniversity({ url, profilePath, onProgress = () => 
       facts: [],
       dimensions: DIMENSIONS.map((d) => ({ ...d, score: null, rationale: 'Pending: no LLM provider configured.' })),
       score: null, grade: null, verdict: null, summary: null, strengths: [], risks: [],
-      nextSteps: ['Add ANTHROPIC_API_KEY to .env (see .env.example).'],
+      nextSteps: ['Sign in to Claude Code (subscription) or add ANTHROPIC_API_KEY to .env.'],
       reportPath: null, tracker: null,
     };
   }

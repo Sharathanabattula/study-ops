@@ -1,15 +1,21 @@
 /**
- * @file Anthropic Claude provider: the only module that talks to an LLM.
+ * @file Claude provider: the only module that talks to an LLM.
  *
- * Every agent goes through these helpers, so model choice, refusal handling,
- * fallbacks and prompt caching are decided in one place.
+ * Every agent goes through these helpers, so the provider, model, refusal
+ * handling, fallbacks and prompt caching are decided in one place.
  *
- * Credentials resolve the SDK's usual way: `ANTHROPIC_API_KEY`, then
- * `ANTHROPIC_AUTH_TOKEN`, then an `ant auth login` profile. Nothing is sent
- * until an agent calls {@link structured} or {@link generate}.
+ * Two providers, picked automatically (override with STUDY_OPS_PROVIDER):
+ *  - `api`: the Anthropic API with ANTHROPIC_API_KEY (pay per use). Used
+ *    when a key is set.
+ *  - `claude-code`: your Claude subscription (Pro/Max) through the Claude
+ *    Code CLI you're signed in to (`claude -p`). Used when there's no key
+ *    and `claude` is installed. See ./claude_code.js.
+ *
+ * Nothing is sent until an agent calls {@link structured} or {@link generate}.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
+import { claudeCodeAvailable, runClaudeCode } from './claude_code.js';
 
 export const DEFAULT_MODEL = 'claude-opus-5-5';
 
@@ -42,17 +48,35 @@ export function model() {
 }
 
 /**
- * Cheap pre-flight so commands can say "configure a provider" instead of
- * failing mid-run. An `ant auth login` profile also works even when this
- * returns false, so set `STUDY_OPS_PROVIDER=anthropic` to skip the check.
+ * Which provider will handle calls: 'api', 'claude-code', or null if neither is set up.
+ * STUDY_OPS_PROVIDER=claude-code forces the subscription even when a key is set;
+ * STUDY_OPS_PROVIDER=api (or the older "anthropic") forces the API; "off" disables AI steps.
+ * @returns {'api'|'claude-code'|null}
+ */
+export function provider() {
+  const forced = (process.env.STUDY_OPS_PROVIDER ?? '').toLowerCase();
+  if (forced === 'off' || forced === 'none') return null;
+  if (forced === 'claude-code' || forced === 'subscription') return 'claude-code';
+  if (forced === 'api' || forced === 'anthropic') return 'api';
+  if (process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN) return 'api';
+  return claudeCodeAvailable() ? 'claude-code' : null;
+}
+
+/** Human-readable provider, for CLI notes. */
+export function providerLabel() {
+  const p = provider();
+  return p === 'claude-code' ? 'your Claude subscription (Claude Code)' : p === 'api' ? `the Anthropic API (${model()})` : 'no provider';
+}
+
+/**
+ * Pre-flight so commands can say "set up a provider" instead of failing mid-run.
  */
 export function isConfigured() {
-  return Boolean(
-    process.env.ANTHROPIC_API_KEY ||
-      process.env.ANTHROPIC_AUTH_TOKEN ||
-      process.env.STUDY_OPS_PROVIDER === 'anthropic',
-  );
+  return provider() !== null;
 }
+
+/** Shared "not set up" message. */
+export const NOT_CONFIGURED = 'No Claude access set up. Either install Claude Code and sign in with your Claude subscription (https://code.claude.com), or add ANTHROPIC_API_KEY to .env.';
 
 /**
  * Build a cached system prompt. The stable context (instructions, profile,
@@ -92,6 +116,7 @@ function assertUsable(response) {
  * @returns {Promise<T>}
  */
 export async function structured({ system, prompt, schema, effort = 'high' }) {
+  if (provider() === 'claude-code') return (await runClaudeCode({ system, prompt, schema, effort })).data;
   const response = await getClient().beta.messages.parse({
     model: model(),
     max_tokens: 16000,
@@ -122,6 +147,12 @@ export async function structured({ system, prompt, schema, effort = 'high' }) {
  * @returns {Promise<T>}
  */
 export async function structuredWithSearch({ system, prompt, schema, allowedDomains, maxSearches = 5, effort = 'medium' }) {
+  if (provider() === 'claude-code') {
+    // Claude Code's WebSearch has no domain filter, so the limit is stated in
+    // the prompt. Agents still verify every URL's domain and content locally.
+    const scoped = `Search and fetch only pages on these domains: ${allowedDomains.join(', ')}. Use at most ${maxSearches} searches.\n\n${prompt}`;
+    return (await runClaudeCode({ system, prompt: scoped, schema, effort, tools: ['WebSearch', 'WebFetch'] })).data;
+  }
   const messages = [{ role: 'user', content: prompt }];
   for (let attempt = 0; attempt < 4; attempt++) {
     const response = await getClient().beta.messages.parse({
@@ -156,6 +187,7 @@ export async function structuredWithSearch({ system, prompt, schema, allowedDoma
  * @returns {Promise<string>}
  */
 export async function generate({ system, prompt, effort = 'high' }) {
+  if (provider() === 'claude-code') return (await runClaudeCode({ system, prompt, effort })).text;
   const stream = getClient().beta.messages.stream({
     model: model(),
     max_tokens: 64000,

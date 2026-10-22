@@ -393,8 +393,13 @@ export function buildElitePrompt({ universityName, course, details, notes, tone,
     wordLimit ? `Length: at most ${wordLimit} words.` : 'Length: 800–1,000 words unless the programme page states a limit.',
     pageText ? `If the programme page sets its own statement questions or limits, follow them.\n\n<programme_page>\n${pageText}\n</programme_page>` : '',
     '',
-    'Return only the statement in Markdown: no title, no preamble, no commentary.',
+    'Return only the statement in Markdown: no title, no preamble, no commentary. Never put notes, placeholders or [bracketed] remarks inside the essay. If a detail looks unusable, leave it out; the review notes cover it.',
   ].filter((line, i, all) => line !== '' || all[i - 1] !== '').join('\n');
+}
+
+/** Square-bracketed editorial notes left inside an essay, e.g. "[Add a professor here]". */
+export function bracketNotes(text) {
+  return [...text.matchAll(/\[[^\]\n]{12,}\]/g)].map((m) => m[0]);
 }
 
 /**
@@ -511,6 +516,8 @@ export async function generateTailoredSOP(universityName, targetCourse, universi
   const strayPeople = namedPeople(draft).filter((n) => !checkReferences([n], allowedNames).ok.length);
   if (strayNumbers.length) warnings.push(`Numbers not in your raw material: ${strayNumbers.join(', ')}. Confirm or remove.`);
   if (strayPeople.length) warnings.push(`People named who were not supplied: ${strayPeople.join(', ')}. Remove them.`);
+  const notes = bracketNotes(draft);
+  if (notes.length) warnings.push(`The essay contains ${notes.length} bracketed note(s), e.g. ${notes[0].slice(0, 80)}. Delete them before submitting.`);
   const wordCount = countWords(draft);
   if (wordLimit && wordCount > wordLimit) warnings.push(`Final draft is ${wordCount} words, over the ${wordLimit}-word limit.`);
 
