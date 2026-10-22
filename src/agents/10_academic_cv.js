@@ -13,7 +13,7 @@
  *     it writes a question for the student instead of a number.
  *  3. Code checks: every number and every publication title must appear in
  *     the resume or profile. Anything else is listed for review.
- *  4. Render consistent Markdown to `output/cv/academic_cv.md`, applying UK
+ *  4. Render consistent Markdown to `outputs/cv/academic_cv.md`, applying UK
  *     conventions: reverse-chronological, roughly two pages, and no photo,
  *     date of birth, marital status, religion or parents' names (common on
  *     Indian resumes, not expected in the UK).

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0 · 2026-10-22
+
+Elite SOP engine.
+
+- `templates/elite_sop_framework.md` (copied to `data/templates/` by `init`): the Elite SOP Constraints (anti-childhood opening, show-don't-tell, the "Why this university" formula, understated academic tone) plus a truthfulness rule. It is used verbatim as the system prompt for every SOP command.
+- `templates/master_sop_raw.md` → `data/master_sop_raw.md`: structured raw material (milestone, academics, projects, work, turning point, interests, why UK, goals, gaps).
+- `generateTailoredSOP(universityName, targetCourse, universitySpecificDetails)` in `src/agents/2_sop_tailor.js`: draft → elite critique → code checks (banned openings/words parsed from the framework, Rule 3 names in the final body paragraph, unsupported numbers, unsupplied people) → revise → re-check. Output goes to `outputs/sops/SOP_<University>.md`.
+- `study-ops generate-sop --uni --course --prof --module [--lab] [--url] [--find-faculty]` now runs the Elite engine. The previous master-based ≈30% tailoring is `study-ops tailor-sop`, and it and `master-sop` also run under the framework.
+- Generated documents moved from `output/` to `outputs/` (both git-ignored).
+
 ## 0.4.0 · 2026-10-22
 
 Phase 2: the positioning engine (documents).

@@ -6,7 +6,9 @@
  * with academic rigour rather than enthusiasm.
  *
  * Pipeline
- *  1. Plan: Claude reads the profile (and any existing master) and proposes
+ *  0. Rules: the Elite SOP Constraints (data/templates/elite_sop_framework.md)
+ *     lead the system prompt; raw material comes from data/master_sop_raw.md.
+ *  1. Plan: Claude reads the profile, raw material and any existing master, and proposes
  *     a central thesis and a beat-by-beat arc. Every beat cites evidence from
  *     the profile. Where evidence is missing it asks questions instead of
  *     filling the gap.
@@ -15,7 +17,7 @@
  *     answers there and re-runs. `--skip-interview` drafts anyway.
  *  3. Draft → critique (rubric incl. academic rigour) → code checks (numbers
  *     not in any source) → revise.
- *  4. Save to `output/sop/master.md`. `--adopt` makes it the master in
+ *  4. Save to `outputs/sops/master.md`. `--adopt` makes it the master in
  *     `data/personal_statement.md`, backing up the old one first.
  */
 import fs from 'node:fs/promises';
@@ -25,6 +27,7 @@ import { PATHS } from '../lib/paths.js';
 import { exists } from '../lib/files.js';
 import { loadProfile } from '../lib/profile.js';
 import { countWords, unsupportedNumbers } from '../lib/factcheck.js';
+import { eliteViolations, loadFramework, rawIsFilled } from '../lib/sop_framework.js';
 import { generate, isConfigured, structured } from '../llm/claude.js';
 
 export const MASTER_RUBRIC = Object.freeze({
@@ -107,14 +110,19 @@ export async function buildMasterSop({ words = 1100, adopt = false, skipIntervie
   const hasExisting = existing.replace(/^#.*$|^>.*$/gm, '').trim().length > 200; // ignore the empty template
   const interview = (await exists(PATHS.sopInterview)) ? parseInterview(await fs.readFile(PATHS.sopInterview, 'utf8')) : [];
   const answered = interview.filter((q) => q.answer);
+  const framework = await loadFramework();
+  const rawText = (await exists(PATHS.masterRaw)) ? await fs.readFile(PATHS.masterRaw, 'utf8') : '';
+  const raw = rawIsFilled(rawText) ? rawText : '';
 
   const context = [
     `<student_profile>\n${profile.raw}\n</student_profile>`,
+    raw ? `<raw_material>\n${raw}\n</raw_material>` : '',
     hasExisting ? `<existing_statement>\n${existing}\n</existing_statement>` : '',
     answered.length ? `<interview_answers>\n${answered.map((q) => `Q: ${q.question}\nA: ${q.answer}`).join('\n\n')}\n</interview_answers>` : '',
   ].filter(Boolean).join('\n\n');
-  const system = [SYSTEM, context];
-  const factSources = [profile.raw, existing, ...answered.map((q) => q.answer)];
+  // The Elite framework leads the system prompt; Rule 3 (named university details) is the tailors' job.
+  const system = [framework.text, SYSTEM, context];
+  const factSources = [profile.raw, raw, existing, ...answered.map((q) => q.answer)];
 
   onProgress('Planning the narrative');
   const plan = await structured({
@@ -153,6 +161,7 @@ export async function buildMasterSop({ words = 1100, adopt = false, skipIntervie
   });
   const badNumbers = unsupportedNumbers(first, factSources);
   const changes = [
+    ...eliteViolations(first, framework),
     ...critique.fixes,
     ...critique.unsupported_claims.map((c) => `Unsupported claim: "${c}". Remove it or ground it in the profile.`),
     ...critique.cliches.map((c) => `Cut the cliché "${c}".`),
@@ -169,6 +178,7 @@ export async function buildMasterSop({ words = 1100, adopt = false, skipIntervie
   const warnings = [];
   const stray = unsupportedNumbers(draft, factSources);
   if (stray.length) warnings.push(`Numbers not found in your profile or answers: ${stray.join(', ')}. Confirm they're real.`);
+  warnings.push(...eliteViolations(draft, framework).map((v) => `Still breaks ${v}`));
   const wordCount = countWords(draft);
 
   await fs.mkdir(PATHS.sopOutput, { recursive: true });

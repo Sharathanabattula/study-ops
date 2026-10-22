@@ -17,6 +17,8 @@ const SCAFFOLD = [
   { template: 'outcomes.yaml', target: PATHS.outcomes },
   { template: 'recommenders.yaml', target: PATHS.recommenders },
   { template: 'resume.md', target: PATHS.resume },
+  { template: 'master_sop_raw.md', target: PATHS.masterRaw },
+  { template: 'elite_sop_framework.md', target: PATHS.eliteFramework },
 ];
 
 /**
@@ -32,6 +34,7 @@ export async function initWorkspace({ force = false } = {}) {
       skipped.push(target);
       continue;
     }
+    await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.copyFile(path.join(PATHS.templates, template), target);
     created.push(target);
   }
@@ -59,7 +62,7 @@ export function printWelcome({ created, skipped }) {
     `   Core Narrative · Career Goals · Signature Achievements`,
     `   Why the UK · Gaps & Red Flags ${color.muted('(be honest; agents pre-empt them)')}`,
     '',
-    `${color.brand('3')}  ${color.bold('data/personal_statement.md')}  ${color.muted('your long-form master SOP')}`,
+    `${color.brand('3')}  ${color.bold('data/master_sop_raw.md')}  ${color.muted('raw story, projects, goals for your SOPs')}`,
   ], { tint: color.brand });
 
   heading('Then run');
@@ -71,13 +74,14 @@ export function printWelcome({ created, skipped }) {
     cmd('study-ops match-syllabus <programme-url>', 'your modules vs prerequisites'),
     cmd('study-ops evaluate <programme-url>', 'A–F fit report'),
     cmd('study-ops master-sop', 'central narrative (interviews you first)'),
-    cmd('study-ops generate-sop --uni LSE --url <page>', '≈30% tailored, real faculty & modules'),
+    cmd('study-ops generate-sop --uni LSE --course …', 'Elite SOP from data/master_sop_raw.md'),
+    cmd('study-ops tailor-sop --uni LSE --url <page>', '≈30% rewrite of your master SOP'),
     cmd('study-ops lor', '2–3 distinct recommender drafts'),
     cmd('study-ops academic-cv', 'resume → UK academic CV'),
     cmd('study-ops audit-funds --location london \\', 'UKVI proof of funds'),
     cmd('    --duration 12 --tuition 38000'),
   ]);
 
-  note('Privacy: data/, reports/ and output/ are git-ignored and never leave this machine.');
+  note('Privacy: data/, reports/ and outputs/ are git-ignored and never leave this machine.');
   console.log();
 }

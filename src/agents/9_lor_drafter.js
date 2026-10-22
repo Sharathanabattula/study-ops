@@ -24,7 +24,7 @@
  *  3. Code checks: 4-gram overlap between every pair of letters, plus numbers
  *     that appear in no source. Letters that overlap too much or invent
  *     figures are revised once.
- *  4. Write `output/lor/<id>.md` (briefing + draft).
+ *  4. Write `outputs/lor/<id>.md` (briefing + draft).
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';

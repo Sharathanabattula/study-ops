@@ -29,7 +29,7 @@ const visibleWidth = (s) => [...s.replace(ANSI_RE, '')].length;
 const padEnd = (s, width) => s + ' '.repeat(Math.max(0, width - visibleWidth(s)));
 
 /** Print the Study-Ops wordmark. */
-export function banner(subtitle = 'UK Edition · Phase 1') {
+export function banner(subtitle = 'UK Edition') {
   console.log();
   console.log(`  ${color.brand.bold('study')}${color.accent.bold('·ops')}  ${color.muted(subtitle)}`);
   console.log(`  ${color.muted('local-first agents for the study-abroad pipeline')}`);

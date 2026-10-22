@@ -34,7 +34,8 @@ Inspired by [`santifer/career-ops`](https://github.com/santifer/career-ops). The
 **Phase 2: The positioning engine** (documents)
 
 - **🧭 Master SOP Architect**: plans a central thesis and a causal arc (past academics → turning point → motivation → goals). It asks you questions where the profile is thin instead of inventing, then drafts, critiques and revises for academic rigour.
-- **✍️ University-specific SOP Tailor**: rewrites about 30% of the master for each university, measured in code, and weaves in real modules, faculty and labs. A name is used only if it appears on an official page Study-Ops fetched itself.
+- **🎓 Elite SOP Engine** (`generate-sop`): writes each university's statement from your raw material under the Elite SOP Constraints. It opens in media res, uses evidence instead of adjectives ("passionate", "fascinated" and similar are banned), and ends with a "Why this university" paragraph naming one module, one professor and one lab. Code checks enforce these rules, not just the prompt.
+- **✍️ Master-based SOP Tailor** (`tailor-sop`): rewrites about 30% of the master for each university, measured in code, and weaves in real modules, faculty and labs. A name is used only if it appears on an official page Study-Ops fetched itself.
 - **🤝 LOR Drafter**: plans 2–3 letters with different angles (research, leadership, technical…), gives each its own evidence, and checks the drafts against each other so they don't sound alike. Each is a briefing and draft for the recommender to rewrite and submit.
 - **📄 Academic CV**: turns a job-search resume into a UK academic CV (education and research first, publications, quantified projects) and drops details UK CVs leave out (DOB, photo, marital status).
 
@@ -79,13 +80,14 @@ Fill in `data/student_profile.md`, then:
 | `study-ops cost [url] [--tuition] [--duration] [--zone inner\|outer\|outside]` | 6 · Cost of attendance + ROI | ✅ Ready (offline with `--tuition`) |
 | `study-ops match-syllabus <url> [--extra-url] [--modules-file]` | 7 · Syllabus Matcher → `reports/syllabus-<id>.md` | ✅ Ready (needs API key) |
 | `study-ops evaluate <url>` | 1 · University Evaluator: A–F grade, 1.0–5.0 score, report in `reports/`, tracker updated | ✅ Ready (needs API key) |
-| `study-ops master-sop [--words 1100] [--adopt] [--skip-interview]` | 8 · Master SOP → `output/sop/master.md` | ✅ Ready (needs API key) |
-| `study-ops generate-sop --uni <name> --url <page> [--research-urls …] [--find-faculty] [--words]` | 2 · ≈30% tailoring with verified specifics → `output/sop/<uni>.md` | ✅ Ready (needs API key) |
-| `study-ops lor [--only ids] [--programme]` | 9 · LOR drafts from `data/recommenders.yaml` → `output/lor/<id>.md` | ✅ Ready (needs API key) |
-| `study-ops academic-cv [--resume file]` | 10 · Resume → `output/cv/academic_cv.md` | ✅ Ready (needs API key) |
+| `study-ops master-sop [--words 1100] [--adopt] [--skip-interview]` | 8 · Master SOP → `outputs/sops/master.md` | ✅ Ready (needs API key) |
+| `study-ops generate-sop --uni <name> --course <name> [--prof] [--module] [--lab] [--url] [--find-faculty]` | 2 · **Elite SOP** from `data/master_sop_raw.md` → `outputs/sops/SOP_<University>.md` | ✅ Ready (needs API key) |
+| `study-ops tailor-sop --uni <name> --url <page> [--research-urls …] [--find-faculty] [--words]` | 2 · ≈30% rewrite of your master SOP with verified specifics → `outputs/sops/<uni>.md` | ✅ Ready (needs API key) |
+| `study-ops lor [--only ids] [--programme]` | 9 · LOR drafts from `data/recommenders.yaml` → `outputs/lor/<id>.md` | ✅ Ready (needs API key) |
+| `study-ops academic-cv [--resume file]` | 10 · Resume → `outputs/cv/academic_cv.md` | ✅ Ready (needs API key) |
 | `study-ops audit-funds --location <london\|outside> --duration <months> --tuition <gbp>` | 3 · UKVI Compliance Engine | ✅ Ready (deterministic) |
 
-Without an API key, `evaluate` and `generate-sop` still run in scaffold mode. `generate-sop` then saves a ready-to-paste prompt for any model.
+Without an API key, `evaluate`, `generate-sop` and `tailor-sop` still run in scaffold mode. The SOP commands then save a ready-to-paste prompt for any model.
 
 ### How Safe / Target / Reach is decided
 
@@ -114,10 +116,15 @@ Admissions tutors notice invented details: a professor who isn't on the staff li
 | Check | Where | What happens |
 |---|---|---|
 | **Numbers**: every figure must appear in your profile, statement, interview answers, recommender evidence or resume | all four | Flagged and sent back for revision; anything left is listed in the output |
-| **Names**: professors, labs and modules must appear on an official page Study-Ops fetched | SOP tailor | Unconfirmed names are dropped before drafting and flagged if they reappear |
-| **Tailoring ratio**: word-level diff against the master, aiming for ≈30% (20–45% band) | SOP tailor | Revised if outside the band; the final ratio is printed |
+| **Names**: professors, labs and modules must appear on an official page Study-Ops fetched | SOP commands | Unconfirmed names are dropped before drafting and flagged if they reappear |
+| **Elite rules**: banned openings/words (from the framework file), Rule 3 names present in the final body paragraph | all SOP commands | Sent back for revision; anything left is listed in the output |
+| **Tailoring ratio**: word-level diff against the master, aiming for ≈30% (20–45% band) | tailor-sop | Revised if outside the band; the final ratio is printed |
 | **Distinctness**: 4-gram overlap between every pair of LORs | LOR drafter | Letters that sound alike are rewritten |
 | **Publications**: each title must be in your resume | Academic CV | Listed for removal |
+
+**The Elite SOP Constraints** live in `data/templates/elite_sop_framework.md`, copied from `templates/` by `init`. The file is used verbatim as the system prompt for `generate-sop`, `tailor-sop` and `master-sop`. Its **Banned openings** and **Banned words** lists are parsed by code, so editing the file changes both what the model is told and what the checker enforces. Rule 3 needs a module, a professor and a lab or facility. Pass them with `--module`, `--prof` and `--lab`, or give `--url` (plus `--find-faculty`) and Study-Ops fills any gaps from names confirmed on official pages. If one is missing, the statement leaves it out and tells you, rather than inventing one.
+
+Put your raw story (milestone, projects, work, turning point, goals) in `data/master_sop_raw.md`. Write facts, not prose: every number in the final essay must come from there or from your profile.
 
 **The master SOP interviews you.** `master-sop` first plans the narrative. If an essential piece is missing (the moment you noticed the problem, what you actually did), it writes the questions to `data/sop_interview.md` and stops. Answer them there and run it again.
 
@@ -161,7 +168,7 @@ study-ops audit-funds --location london --duration 12 --tuition 38000 \
 bin/study-ops.js                 CLI routing (commander), rendering only
 src/agents/
   1_university_evaluator.js      URL + profile → A–F report
-  2_sop_tailor.js                master → ≈30% tailored SOP with verified specifics
+  2_sop_tailor.js                generateTailoredSOP (Elite engine) + master-based ≈30% tailoring
   3_ukvi_compliance_engine.js    funds, 28-day rule, CAS guardrails (pure functions)
   4_profile_auditor.js           CGPA → % → UK class / US GPA, backlogs, English (pure)
   5_shortlist_matrix.js          discover → extract → Safe/Target/Reach → report + tracker
@@ -174,6 +181,7 @@ src/llm/claude.js                the only module that calls an LLM (model, cachi
 src/lib/programme.js             shared, cached programme-page extraction (data/programmes/)
 src/lib/specifics.js             modules, faculty and labs, verified on official pages
 src/lib/factcheck.js             number, name, overlap and change-ratio guards
+src/lib/sop_framework.js         loads the Elite framework; enforces its rules in code
 src/lib/                         paths, Markdown/YAML state, profile, registry, tracker, page fetcher
 src/ui/theme.js                  terminal design system (palette, panels, rows)
 src/commands/init.js             workspace scaffold + onboarding
@@ -181,20 +189,22 @@ config/ukvi_rules.yaml           dated UKVI financial rules (edit when gov.uk ch
 config/uk_universities.yaml      24 Russell Group members: domains, UKVI location, selectivity, SOP tone
 config/grade_equivalence.yaml    CGPA formulas, UK class bands by tier, US GPA, English tiers
 config/living_costs.yaml         monthly living costs: inner / outer / outside London
-templates/                       pristine copies used by `init`
+templates/                       pristine copies used by `init` (incl. elite_sop_framework.md)
 data/                            YOUR state (git-ignored)
-reports/, output/                agent output (git-ignored)
+reports/, outputs/                agent output (git-ignored)
 ```
 
 **State model**
 - `data/student_profile.md`: YAML front-matter holds machine-read facts (CGPA, IELTS bands, budget, shortlist). The Markdown body holds your narrative. Agents parse both: `##` sections are indexed by heading.
+- `data/master_sop_raw.md`: raw material for every statement.
+- `data/templates/elite_sop_framework.md`: your editable copy of the Elite SOP Constraints.
 - `data/recommenders.yaml`: 2–3 recommenders, each with the evidence they personally observed.
 - `data/resume.md`: your current resume, pasted as text.
 - `data/sop_interview.md`: questions from `master-sop`, answered by you.
 - `data/outcomes.yaml`: past admission results (anonymous) that turn the matrix into a data-driven one.
 - `data/tracker.yaml`: one entry per programme, with a status lifecycle running from `researching` through `cas_issued`, `visa_granted` and `enrolled`.
 
-**Privacy.** `data/`, `reports/` and `output/` are git-ignored. Set `STUDY_OPS_HOME` to keep them somewhere else, such as an encrypted volume. Nothing is sent to an LLM until you add an API key, and then only for `shortlist`, `evaluate`, `match-syllabus`, `cost <url>` and the Phase 2 document commands. `audit-profile`, `audit-funds` and `cost --tuition` never leave your machine.
+**Privacy.** `data/`, `reports/` and `outputs/` are git-ignored. Set `STUDY_OPS_HOME` to keep them somewhere else, such as an encrypted volume. Nothing is sent to an LLM until you add an API key, and then only for `shortlist`, `evaluate`, `match-syllabus`, `cost <url>` and the Phase 2 document commands. `audit-profile`, `audit-funds` and `cost --tuition` never leave your machine.
 
 ## Development
 
@@ -207,6 +217,7 @@ STUDY_OPS_DEBUG=1   # print stack traces
 
 - ~~**0.2** Claude provider, evaluator extraction and scoring, SOP generate → critique → revise.~~ ✅
 - ~~**0.3** Phase 1 intake: profile audit, Safe/Target/Reach matrix, cost & ROI, syllabus matching.~~ ✅
+- ~~**0.5** Elite SOP engine: framework-as-system-prompt, `generate-sop --prof --module --lab`, rule checks in code.~~ ✅
 - ~~**0.4** Phase 2 positioning: master SOP, ≈30% tailoring with verified specifics, distinct LORs, academic CV.~~ ✅
 - **1.2** `study-ops tracker` (status board, deadline alerts), CAS checklist agent.
 - **2.x** More countries (Canada, Australia, Germany), dependants and sponsor modelling.

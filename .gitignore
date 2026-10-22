@@ -6,6 +6,7 @@ data/*
 !data/.gitkeep
 reports/
 output/
+outputs/
 
 .DS_Store
 *.log

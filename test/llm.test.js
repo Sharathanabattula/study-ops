@@ -118,7 +118,7 @@ test('evaluate end-to-end: extract → score → report + tracker', async () => 
   assert.equal(again.match(/id: lse-msc-finance/g).length, 1, 're-evaluating updates in place');
 });
 
-test('generate-sop end-to-end: draft → critique → revise', async () => {
+test('tailor-sop end-to-end: draft → critique → revise', async () => {
   await fs.writeFile(path.join(home, 'data', 'personal_statement.md'), '# Master\nI scaled assays at a CRO.');
   const requests = record((body, n) => [
     'First draft about assays.',
@@ -129,7 +129,8 @@ test('generate-sop end-to-end: draft → critique → revise', async () => {
   const res = await tailorPersonalStatement({ university: 'imperial', wordLimit: 700 });
   assert.equal(requests.length, 3);
   assert.equal(requests[0].body.stream, true, 'long-form generation streams');
-  assert.match(requests[0].body.system[1].text, /I scaled assays/);
+  assert.match(requests[0].body.system.at(-1).text, /I scaled assays/);
+  assert.match(requests[0].body.system[0].text, /Elite SOP Constraints/, 'framework is the system prompt');
   assert.deepEqual(requests[0].body.system, requests[2].body.system, 'identical cached prefix across calls');
   assert.match(requests[2].body.messages[0].content, /I led a team of 50/);
 

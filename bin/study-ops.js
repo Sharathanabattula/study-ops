@@ -12,7 +12,7 @@ import { Command, InvalidArgumentError } from 'commander';
 
 import { initWorkspace, printWelcome } from '../src/commands/init.js';
 import { evaluateUniversity } from '../src/agents/1_university_evaluator.js';
-import { tailorPersonalStatement } from '../src/agents/2_sop_tailor.js';
+import { generateTailoredSOP, tailorPersonalStatement } from '../src/agents/2_sop_tailor.js';
 import { auditFunds, parseDate } from '../src/agents/3_ukvi_compliance_engine.js';
 import { auditProfile } from '../src/agents/4_profile_auditor.js';
 import { buildShortlist } from '../src/agents/5_shortlist_matrix.js';
@@ -315,6 +315,44 @@ program
 
 program
   .command('generate-sop')
+  .description('Elite SOP: write a university-specific statement from data/master_sop_raw.md under the Elite constraints')
+  .requiredOption('-u, --uni <name>', 'target university, e.g. "Imperial College London"')
+  .requiredOption('-c, --course <name>', 'target course, e.g. "MSc Business Analytics"')
+  .option('--prof <name>', 'professor whose research aligns with yours (Rule 3)')
+  .option('--module <name>', 'module you want to take (Rule 3)')
+  .option('--lab <name>', 'lab, research group or campus facility (Rule 3)')
+  .option('--notes <text>', 'anything else you researched about the university')
+  .option('--url <url>', 'programme page: verifies names and fills missing Rule 3 items from official pages')
+  .option('--research-urls <urls>', 'comma-separated faculty or lab pages')
+  .option('--find-faculty', 'search the university’s site for faculty and labs (verified)')
+  .option('-w, --words <n>', 'word limit', positiveNumber)
+  .option('--refresh', 're-fetch pages and specifics')
+  .action(run(async (opts) => {
+    banner('Elite SOP Engine');
+    const r = await generateTailoredSOP(opts.uni, opts.course, {
+      professor: opts.prof, module: opts.module, lab: opts.lab, notes: opts.notes, url: opts.url,
+      researchUrls: opts.researchUrls?.split(',').map((s) => s.trim()).filter(Boolean), findFaculty: opts.findFaculty,
+    }, { wordLimit: opts.words, refresh: opts.refresh, onProgress: progress });
+    if (r.status === 'complete') console.log();
+
+    const tag = (k) => (r.details[k] ? `${r.details[k]} ${color.muted(`(${r.detailSources[k]})`)}` : color.warn('not supplied'));
+    panel(`${r.university} · ${r.course}`, [row('Module', tag('module'), 10), row('Professor', tag('professor'), 10), row('Lab', tag('lab'), 10)], { tint: color.brand });
+
+    if (r.status === 'complete') {
+      panel('elite review (first draft)', Object.entries(r.critique.scores).map(([k, v]) => row(k.replace(/_/g, ' '), `${v}/5`, 16)));
+      if (r.violations.length) for (const v of r.violations) fail(v);
+      else success('All Elite rule checks pass on the final text.');
+      success(`${r.wordCount} words saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
+    } else {
+      success(`Prompt saved to ${color.bold(path.relative(process.cwd(), r.outputPath))}`);
+      note('Scaffold mode: add ANTHROPIC_API_KEY to .env to generate the statement directly.');
+    }
+    for (const w of r.warnings) warn(w);
+    console.log();
+  }));
+
+program
+  .command('tailor-sop')
   .description('Tailor ≈30% of your master statement to one university, with verified faculty, labs and modules')
   .requiredOption('-u, --uni <name>', 'university name or key, e.g. LSE, imperial, ucl')
   .option('--url <url>', 'programme page (enables real modules and the page’s own prompts)')
@@ -324,7 +362,7 @@ program
   .option('-w, --words <n>', 'word limit', positiveNumber)
   .option('--refresh', 're-fetch pages and specifics')
   .action(run(async (opts) => {
-    banner('SOP Tailor');
+    banner('SOP Tailor (from master)');
     const result = await tailorPersonalStatement({
       university: opts.uni, programme: opts.programme, wordLimit: opts.words, url: opts.url,
       researchUrls: opts.researchUrls?.split(',').map((s) => s.trim()).filter(Boolean), findFaculty: opts.findFaculty,

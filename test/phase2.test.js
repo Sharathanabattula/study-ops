@@ -129,7 +129,7 @@ test('master SOP interviews first, then drafts from the answers', async () => {
   assert.ok(done.backupPath, 'previous master backed up');
   assert.equal((await fs.readFile(PATHS.personalStatement, 'utf8')).trim(), 'Final master essay about funding gaps.');
   const planCall = reqs.filter((r) => r.body.output_config?.format)[2];
-  assert.match(planCall.body.system[1].text, /My final-year assay project lost its grant/);
+  assert.match(planCall.body.system.at(-1).text, /My final-year assay project lost its grant/);
   const revise = reqs.at(-1).body.messages[0].content;
   assert.match(revise, /Cut the cliché "passion for"/);
 });
